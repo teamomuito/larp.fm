@@ -34,8 +34,9 @@ And yes, it larps. Tap LARP on a scrobble and it counts again.
 
 ## install
 
-1. Open the [latest build](https://github.com/teamomuito/larp.fm/actions/workflows/android.yml),
-   download `larpfm-apk` and unzip it.
+1. Download **[larpfm.apk](https://github.com/teamomuito/larp.fm/releases/latest/download/larpfm.apk)**.
+   That link always points to the newest build, and older ones are on the
+   [releases page](https://github.com/teamomuito/larp.fm/releases).
 2. Install the APK. Your phone will ask you to allow installs from your browser or files app.
 3. Tap **Sign in with Last.fm**, hit Allow on the Last.fm page, and you're back in the app. If
    the build doesn't have an API key baked in, it'll ask for one first.
@@ -70,7 +71,7 @@ You'll need JDK 17 and the Android SDK.
 ```
 
 The APK ends up in `app/build/outputs/apk/release/`. GitHub Actions builds every push, and
-pushing a tag like `v1.0` publishes a release.
+each push to the main branch is published as a release (the 5 newest are kept).
 
 These repo secrets are optional:
 

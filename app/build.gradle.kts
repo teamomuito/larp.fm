@@ -20,8 +20,10 @@ android {
         applicationId = "io.github.teamomuito.larpfm"
         minSdk = 26
         targetSdk = 35
-        versionCode = 2
-        versionName = "1.1"
+        // Each CI build gets the next number, which is also its release name ("build 12").
+        val buildNumber = providers.environmentVariable("GITHUB_RUN_NUMBER").orNull?.toIntOrNull() ?: 1
+        versionCode = buildNumber
+        versionName = "1.1.$buildNumber"
 
         // Optional: bake in a Last.fm API account so users don't have to paste their own.
         buildConfigField("String", "LASTFM_API_KEY", secret("LASTFM_API_KEY").orEmpty().quoted())
