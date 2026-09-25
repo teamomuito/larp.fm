@@ -17,6 +17,8 @@ class LastFmException(val code: Int, message: String) : Exception(message) {
         const val INVALID_SESSION_KEY = 9
         const val INVALID_API_KEY = 10
         const val INVALID_SIGNATURE = 13
+        const val UNAUTHORIZED_TOKEN = 14
+        const val TOKEN_EXPIRED = 15
         const val SUSPENDED_API_KEY = 26
 
         private val RETRYABLE_CODES = setOf(UNEXPECTED_RESPONSE, 8, 11, 16, 29)

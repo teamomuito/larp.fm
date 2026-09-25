@@ -7,8 +7,10 @@ import androidx.lifecycle.viewModelScope
 import io.github.teamomuito.larpfm.data.Account
 import io.github.teamomuito.larpfm.data.ScrobbleEntry
 import io.github.teamomuito.larpfm.graph
+import io.github.teamomuito.larpfm.lastfm.LastFmClient
 import io.github.teamomuito.larpfm.lastfm.LastFmException
 import io.github.teamomuito.larpfm.lastfm.RecentTracks
+import io.github.teamomuito.larpfm.lastfm.Session
 import io.github.teamomuito.larpfm.work.FlushWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -86,21 +88,43 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
             context.packageName in NotificationManagerCompat.getEnabledListenerPackages(context)
     }
 
-    fun signIn(username: String, password: String, apiKey: String, apiSecret: String) {
+    /** The Last.fm page to open for signing in through the browser. */
+    fun webSignInUrl(apiKey: String, apiSecret: String): String {
+        settings.saveApiCredentials(apiKey, apiSecret)
+        _loginState.value = LoginState.Idle
+        return graph.submitter.client(apiKey, apiSecret).webAuthUrl(AUTH_CALLBACK)
+    }
+
+    /** Last.fm sent the browser back with [token] after the user approved the app. */
+    fun finishWebSignIn(token: String) =
+        completeSignIn(settings.apiKey, settings.apiSecret, "Last.fm didn't confirm the sign-in. Try again.") {
+            it.getSession(token)
+        }
+
+    fun signIn(username: String, password: String, apiKey: String, apiSecret: String) =
+        completeSignIn(apiKey, apiSecret, "Wrong username or password.") { it.getMobileSession(username, password) }
+
+    private fun completeSignIn(
+        apiKey: String,
+        apiSecret: String,
+        authFailedMessage: String,
+        request: (LastFmClient) -> Session,
+    ) {
         if (_loginState.value == LoginState.Loading) return
         _loginState.value = LoginState.Loading
         viewModelScope.launch {
             _loginState.value = try {
-                val session = withContext(Dispatchers.IO) {
-                    graph.submitter.client(apiKey, apiSecret).getMobileSession(username, password)
-                }
+                val session = withContext(Dispatchers.IO) { request(graph.submitter.client(apiKey, apiSecret)) }
                 settings.signIn(Account(session.username, session.key, apiKey, apiSecret))
                 FlushWorker.enqueue(getApplication<Application>())
                 LoginState.Idle
             } catch (e: LastFmException) {
                 LoginState.Error(
                     when (e.code) {
-                        LastFmException.AUTHENTICATION_FAILED -> "Wrong username or password."
+                        LastFmException.AUTHENTICATION_FAILED,
+                        LastFmException.UNAUTHORIZED_TOKEN,
+                        LastFmException.TOKEN_EXPIRED,
+                        -> authFailedMessage
                         LastFmException.INVALID_API_KEY -> "That API key isn't valid."
                         LastFmException.INVALID_SIGNATURE -> "That shared secret doesn't match the API key."
                         else -> e.message ?: "Last.fm error ${e.code}"
@@ -137,5 +161,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
         graph.scope.launch {
             if (repository.larp(entry.id)) FlushWorker.enqueue(context)
         }
+    }
+
+    companion object {
+        /** Where Last.fm sends the browser after the user approves the app; see the manifest. */
+        const val AUTH_CALLBACK = "larpfm://auth"
     }
 }

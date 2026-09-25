@@ -6,6 +6,7 @@ import org.json.JSONArray
 import org.json.JSONException
 import org.json.JSONObject
 import java.io.IOException
+import java.net.URLEncoder
 
 data class Session(val username: String, val key: String)
 
@@ -58,9 +59,21 @@ class LastFmClient(
     private val apiKey: String,
     private val apiSecret: String,
     private val transport: HttpTransport,
-    /** Sees every raw response, for troubleshooting. Not called for sign-in, whose response holds the session key. */
+    /** Sees every raw response, for troubleshooting. Not called for sign-in, whose responses hold the session key. */
     private val onResponse: (method: String, response: HttpResponse) -> Unit = { _, _ -> },
 ) {
+    /**
+     * The Last.fm page where the user approves this app. Afterwards Last.fm sends the browser to
+     * [callback] with a `token` parameter, to pass to [getSession].
+     */
+    fun webAuthUrl(callback: String): String =
+        "https://www.last.fm/api/auth/?api_key=${encode(apiKey)}&cb=${encode(callback)}"
+
+    /** Finishes signing in through the browser, with the token Last.fm sent to the callback. */
+    @Throws(IOException::class, LastFmException::class)
+    fun getSession(token: String): Session =
+        parseSession(call(mapOf("method" to "auth.getSession", "token" to token)), fallbackName = "")
+
     /** Signs in with a username (or email) and password. The password is not kept. */
     @Throws(IOException::class, LastFmException::class)
     fun getMobileSession(username: String, password: String): Session {
@@ -71,11 +84,15 @@ class LastFmClient(
                 "password" to password,
             ),
         )
+        return parseSession(response, fallbackName = username)
+    }
+
+    private fun parseSession(response: JSONObject, fallbackName: String): Session {
         val session = response.optJSONObject("session")
             ?: throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Last.fm returned no session")
         val key = session.optString("key")
         if (key.isEmpty()) throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Last.fm returned no session key")
-        return Session(session.optString("name").ifEmpty { username }, key)
+        return Session(session.optString("name").ifEmpty { fallbackName }, key)
     }
 
     @Throws(IOException::class, LastFmException::class)
@@ -121,7 +138,7 @@ class LastFmClient(
             ("format" to "json")
         val method = params["method"].orEmpty()
         val response = transport.post(API_URL, form)
-        if (method != "auth.getMobileSession") onResponse(method, response)
+        if (!method.startsWith("auth.")) onResponse(method, response)
         val json = try {
             JSONObject(response.body)
         } catch (e: JSONException) {
@@ -139,6 +156,9 @@ class LastFmClient(
     companion object {
         const val API_URL = "https://ws.audioscrobbler.com/2.0/"
         const val MAX_BATCH_SIZE = 50
+
+        // The Charset overload of URLEncoder.encode needs Android API 33.
+        private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
 
         /** Last.fm returns a single item as an object rather than a one-element array. */
         private fun JSONObject.objects(name: String): List<JSONObject> = when (val raw = opt(name)) {

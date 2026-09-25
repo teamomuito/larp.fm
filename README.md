@@ -37,7 +37,8 @@ And yes, it larps. Tap LARP on a scrobble and it counts again.
 1. Open the [latest build](https://github.com/teamomuito/larp.fm/actions/workflows/android.yml),
    download `larpfm-apk` and unzip it.
 2. Install the APK. Your phone will ask you to allow installs from your browser or files app.
-3. Log in with your Last.fm account. You'll also need an API key and secret.
+3. Tap **Sign in with Last.fm**, hit Allow on the Last.fm page, and you're back in the app. If
+   the build doesn't have an API key baked in, it'll ask for one first.
    [Grab one here](https://www.last.fm/api/account/create). It takes a minute, and the name and
    description can be anything.
 4. Give it notification access when it asks. That's the only way Android lets an app see what's

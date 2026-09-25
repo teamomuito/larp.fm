@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -43,10 +44,11 @@ fun LoginScreen(viewModel: MainViewModel) {
     var apiKey by rememberSaveable { mutableStateOf(viewModel.savedApiKey) }
     var apiSecret by rememberSaveable { mutableStateOf(viewModel.savedApiSecret) }
     var showApiFields by rememberSaveable { mutableStateOf(apiKey.isBlank() || apiSecret.isBlank()) }
+    var usePassword by rememberSaveable { mutableStateOf(false) }
     val uriHandler = LocalUriHandler.current
     val loading = state == LoginState.Loading
-    val canSignIn = !loading && username.isNotBlank() && password.isNotEmpty() &&
-        apiKey.isNotBlank() && apiSecret.isNotBlank()
+    val hasApiKey = apiKey.isNotBlank() && apiSecret.isNotBlank()
+    val canSignInWithPassword = !loading && hasApiKey && username.isNotBlank() && password.isNotEmpty()
 
     Scaffold { padding ->
         Column(
@@ -68,23 +70,64 @@ fun LoginScreen(viewModel: MainViewModel) {
                 "Sign in to Last.fm to scrobble what you play in any music app.",
                 style = MaterialTheme.typography.bodyMedium,
             )
-            OutlinedTextField(
-                value = username,
-                onValueChange = { username = it },
-                label = { Text("Username or email") },
-                singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+            Button(
+                onClick = { uriHandler.openUri(viewModel.webSignInUrl(apiKey.trim(), apiSecret.trim())) },
+                enabled = !loading && hasApiKey,
                 modifier = Modifier.fillMaxWidth(),
+            ) {
+                if (loading && !usePassword) {
+                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                } else {
+                    Text("Sign in with Last.fm")
+                }
+            }
+            Text(
+                "Opens Last.fm in your browser. Tap Allow and you'll land back here, signed in.",
+                style = MaterialTheme.typography.bodySmall,
             )
-            OutlinedTextField(
-                value = password,
-                onValueChange = { password = it },
-                label = { Text("Password") },
-                singleLine = true,
-                visualTransformation = PasswordVisualTransformation(),
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
-                modifier = Modifier.fillMaxWidth(),
-            )
+
+            (state as? LoginState.Error)?.let {
+                Text(it.message, color = MaterialTheme.colorScheme.error)
+            }
+
+            if (usePassword) {
+                OutlinedTextField(
+                    value = username,
+                    onValueChange = { username = it },
+                    label = { Text("Username or email") },
+                    singleLine = true,
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Email, imeAction = ImeAction.Next),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedTextField(
+                    value = password,
+                    onValueChange = { password = it },
+                    label = { Text("Password") },
+                    singleLine = true,
+                    visualTransformation = PasswordVisualTransformation(),
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password, imeAction = ImeAction.Done),
+                    modifier = Modifier.fillMaxWidth(),
+                )
+                OutlinedButton(
+                    onClick = { viewModel.signIn(username.trim(), password, apiKey.trim(), apiSecret.trim()) },
+                    enabled = canSignInWithPassword,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    if (loading) {
+                        CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                    } else {
+                        Text("Sign in with password")
+                    }
+                }
+                Text(
+                    "Your password goes straight to Last.fm and isn't stored.",
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            } else {
+                TextButton(onClick = { usePassword = true }) {
+                    Text("Sign in with password instead")
+                }
+            }
 
             if (showApiFields) {
                 Text("Last.fm API account", style = MaterialTheme.typography.titleSmall)
@@ -115,26 +158,6 @@ fun LoginScreen(viewModel: MainViewModel) {
                     Text("Use a different API key")
                 }
             }
-
-            (state as? LoginState.Error)?.let {
-                Text(it.message, color = MaterialTheme.colorScheme.error)
-            }
-
-            Button(
-                onClick = { viewModel.signIn(username.trim(), password, apiKey.trim(), apiSecret.trim()) },
-                enabled = canSignIn,
-                modifier = Modifier.fillMaxWidth(),
-            ) {
-                if (loading) {
-                    CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
-                } else {
-                    Text("Sign in")
-                }
-            }
-            Text(
-                "Your password goes straight to Last.fm and isn't stored.",
-                style = MaterialTheme.typography.bodySmall,
-            )
         }
     }
 }

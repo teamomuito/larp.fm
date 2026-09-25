@@ -83,9 +83,28 @@ class LastFmClientTest {
     @Test
     fun `responses are reported, except sign-in which carries the session key`() {
         client(body = """{"session":{"name":"RJ","key":"abc123"}}""").getMobileSession("rj", "pw")
+        client(body = """{"session":{"name":"RJ","key":"abc123"}}""").getSession("token")
         client(body = """{"nowplaying":{}}""").updateNowPlaying("sk", Track("A", "B"))
 
         assertEquals(listOf("track.updateNowPlaying"), logged)
+    }
+
+    @Test
+    fun `browser sign-in url carries the api key and callback`() {
+        val url = client(body = "{}").webAuthUrl("larpfm://auth")
+
+        assertEquals("https://www.last.fm/api/auth/?api_key=key&cb=larpfm%3A%2F%2Fauth", url)
+    }
+
+    @Test
+    fun `browser sign-in token is swapped for a signed session`() {
+        val session = client(body = """{"session":{"name":"RJ","key":"abc123","subscriber":0}}""").getSession("tok")
+
+        assertEquals(Session("RJ", "abc123"), session)
+        val form = requests.single()
+        assertEquals("auth.getSession", form["method"])
+        assertEquals("tok", form["token"])
+        assertEquals(LastFmSignature.sign(form - "api_sig" - "format", "secret"), form["api_sig"])
     }
 
     @Test

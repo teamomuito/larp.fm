@@ -67,6 +67,14 @@ class Settings(context: Context) {
         _account.value = account
     }
 
+    /** Remembers the API account a browser sign-in was started with, in case the app is closed meanwhile. */
+    fun saveApiCredentials(apiKey: String, apiSecret: String) {
+        prefs.edit {
+            putString(KEY_API_KEY, apiKey)
+            putString(KEY_API_SECRET, apiSecret)
+        }
+    }
+
     fun signOut() {
         prefs.edit {
             remove(KEY_USERNAME)
