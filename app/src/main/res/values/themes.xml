@@ -1,4 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="Theme.Scrobbler" parent="android:Theme.Material.Light.NoActionBar" />
+    <style name="Theme.LarpFm" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:windowBackground">@color/window_background</item>
+        <item name="android:colorAccent">@color/pink</item>
+    </style>
 </resources>

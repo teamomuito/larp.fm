@@ -20,5 +20,5 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "Scrobbler"
+rootProject.name = "larpfm"
 include(":app", ":core")

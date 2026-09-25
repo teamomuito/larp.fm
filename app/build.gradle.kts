@@ -13,15 +13,15 @@ fun secret(name: String): String? =
 fun String.quoted() = "\"" + replace("\\", "\\\\").replace("\"", "\\\"") + "\""
 
 android {
-    namespace = "io.github.teamomuito.scrobbler"
+    namespace = "io.github.teamomuito.larpfm"
     compileSdk = 35
 
     defaultConfig {
-        applicationId = "io.github.teamomuito.scrobbler"
+        applicationId = "io.github.teamomuito.larpfm"
         minSdk = 26
         targetSdk = 35
-        versionCode = 1
-        versionName = "1.0"
+        versionCode = 2
+        versionName = "1.1"
 
         // Optional: bake in a Last.fm API account so users don't have to paste their own.
         buildConfigField("String", "LASTFM_API_KEY", secret("LASTFM_API_KEY").orEmpty().quoted())
