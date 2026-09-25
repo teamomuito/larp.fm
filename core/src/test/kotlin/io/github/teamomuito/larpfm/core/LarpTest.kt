@@ -10,9 +10,7 @@ class LarpTest {
     fun `copies are backdated one track length apart`() {
         val copies = (1 until Larp.MAX_TIMES).map { Larp.copy(original, it) }
 
-        assertEquals(9, copies.size)
-        assertEquals(listOf(1_699_999_800L, 1_699_999_600L, 1_699_999_400L), copies.take(3).map { it.timestampSec })
-        assertEquals("the 9th copy is 9 track lengths back", 1_700_000_000L - 9 * 200, copies.last().timestampSec)
+        assertEquals(listOf(1_699_999_800L, 1_699_999_600L, 1_699_999_400L, 1_699_999_200L), copies.map { it.timestampSec })
         copies.forEach { assertEquals(original.track, it.track) }
     }
 
@@ -24,7 +22,7 @@ class LarpTest {
     }
 
     @Test(expected = IllegalArgumentException::class)
-    fun `no more than ten plays in total`() {
+    fun `no more than five plays in total`() {
         Larp.copy(original, Larp.MAX_TIMES)
     }
 

@@ -3,7 +3,7 @@ package io.github.teamomuito.larpfm.core
 /** Extra copies of a scrobble, as if the track had been played on repeat. */
 object Larp {
     /** A play can count at most this many times, the original included. */
-    const val MAX_TIMES = 10
+    const val MAX_TIMES = 5
 
     /** Last.fm ignores scrobbles more than 14 days old; leave a day's margin for the backdating. */
     const val MAX_AGE_SEC = 13 * 24 * 60 * 60L
