@@ -1,87 +1,95 @@
-# larp.fm
+<p align="center">
+  <img src="docs/icon.svg" width="120" alt="larp.fm">
+</p>
 
-A pink Android app that scrobbles what you play in any music app to [Last.fm](https://www.last.fm).
+<h1 align="center">larp.fm</h1>
 
-It watches the media sessions of the apps on your phone (Spotify, YouTube Music, Poweramp, and so on).
-It sends each track to Last.fm as "now playing" and scrobbles it once enough of it has played.
-Scrobbles made while offline are queued and sent when you're back online.
+<p align="center">
+  a pink little Last.fm scrobbler for Android
+</p>
 
-## Settings
+<p align="center">
+  <a href="https://github.com/teamomuito/larp.fm/actions/workflows/android.yml"><img src="https://github.com/teamomuito/larp.fm/actions/workflows/android.yml/badge.svg" alt="build"></a>
+  <img src="https://img.shields.io/badge/android-8.0%2B-ff4fa3" alt="Android 8.0+">
+  <img src="https://img.shields.io/badge/made%20with-kotlin-c2185b" alt="made with Kotlin">
+</p>
 
-- **Scrobble threshold**: how much of a track has to play before it counts, from 1% to 100%. The
-  default is Last.fm's own rule of 50%. Whatever the percentage, 4 minutes of play is always
-  enough. Tracks of 30 seconds or less never count, and tracks whose length the player doesn't
-  report need the full 4 minutes.
-- **Scrobble album**: turn it off to send only the artist and track, with the album left blank.
-- **Clean album titles**: removes anything in `( )` or `[ ]` from album titles, so
-  "Iron Maiden (Remaster) [Special]" is scrobbled as "Iron Maiden". This also strips brackets
-  that are part of an album's real name. If nothing would be left, the title is kept as it is.
-- **Auto-LARP**: scrobble every play 1× to 5×.
-- **LARP button**: each recent scrobble has one. Every tap scrobbles that play once more, up to
-  5× in total. Last.fm drops a scrobble that repeats one it already has, so each copy is
-  backdated one track length further, as if the track had been on repeat. Last.fm ignores
-  scrobbles older than 14 days, so the button turns off for older plays.
+<br>
 
-## Install
+larp.fm picks up whatever's playing on your phone (Spotify, YouTube Music, Poweramp, pretty much
+any app with a media notification) and scrobbles it to [Last.fm](https://www.last.fm). No
+internet? Plays get saved and sent later.
 
-1. Open the [Actions tab](../../actions/workflows/android.yml), pick the latest successful run and
-   download the `larpfm-apk` artifact. It's a zip containing the APK. If a release exists, you
-   can instead download the APK from [Releases](../../releases).
-2. Install the APK on your phone. You'll need to allow installs from your browser or file manager.
-3. Open larp.fm and sign in with your Last.fm username and password. Unless the APK was built
-   with an API key (see below), you'll also need a free
-   [Last.fm API account](https://www.last.fm/api/account/create). Paste its **API key** and
-   **shared secret** into the sign-in screen. The application name and description can be
-   anything.
-4. Tap **Open settings** and turn on notification access for larp.fm. Android only shows other
-   apps' media sessions to apps with notification access. larp.fm doesn't read or store your
-   notifications.
+And yes, it larps. Tap LARP on a scrobble and it counts again.
 
-   On Android 13 and later, sideloaded apps can't be given notification access straight away. If
-   the switch is greyed out or you see "Restricted setting": open **App info** for larp.fm, tap
-   the **⋮** menu, choose **Allow restricted settings**, then try again.
+## features
 
-Apps show up in the **Apps** list the first time they play something. You can switch each one off
-there. YouTube, Chrome, Firefox and Netflix start switched off because they mostly play things
-that aren't music.
+- scrobble after anywhere from 1% to 100% of a song (Last.fm's default is 50%)
+- send the album, or just artist + track
+- clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
+- LARP any recent play up to 5 times
+- auto-LARP every song if you're feeling bold
+- choose which apps get scrobbled
+- pink, obviously
 
-## Build
+## install
 
-The Android SDK and JDK 17 are required.
+1. Open the [latest build](https://github.com/teamomuito/larp.fm/actions/workflows/android.yml),
+   download `larpfm-apk` and unzip it.
+2. Install the APK. Your phone will ask you to allow installs from your browser or files app.
+3. Log in with your Last.fm account. You'll also need an API key and secret.
+   [Grab one here](https://www.last.fm/api/account/create). It takes a minute, and the name and
+   description can be anything.
+4. Give it notification access when it asks. That's the only way Android lets an app see what's
+   playing. larp.fm doesn't read your notifications.
+
+> [!TIP]
+> On Android 13+, if the notification access switch is greyed out, go to
+> **App info → ⋮ → Allow restricted settings** and try again. Android does this to every app
+> that doesn't come from the Play Store.
+
+Updating? Uninstall the old version first, or Android won't install the new one over it.
+
+## about LARP
+
+Every LARP copy gets its own timestamp, spaced one song apart, like you had it on repeat. That
+keeps Last.fm from throwing them out as duplicates. You can't LARP plays older than about two
+weeks, because Last.fm ignores anything that old.
+
+Last.fm isn't a fan of fake scrobbles, so larp responsibly.
+
+<details>
+<summary><b>building it yourself</b></summary>
+<br>
+
+You'll need JDK 17 and the Android SDK.
 
 ```sh
 ./gradlew test assembleRelease
-# APK: app/build/outputs/apk/release/app-release.apk
 ```
 
-Every push is built by GitHub Actions. Pushing a tag such as `v1.0` also publishes the APK as a
-GitHub release.
+The APK ends up in `app/build/outputs/apk/release/`. GitHub Actions builds every push, and
+pushing a tag like `v1.0` publishes a release.
 
-### Optional build secrets
+These repo secrets are optional:
 
-Set these as repository secrets for CI. For local builds, set them as environment variables or
-in `~/.gradle/gradle.properties`.
-
-| Name | Purpose |
+| secret | what it's for |
 | --- | --- |
-| `LASTFM_API_KEY`, `LASTFM_API_SECRET` | Built into the APK, so users don't have to create their own API account. |
-| `SIGNING_KEYSTORE_BASE64` (CI) or `SIGNING_STORE_FILE` (local) | Release keystore. Without one, each CI build is signed with a different throwaway key. You then have to uninstall the old version before installing a new one, which signs you out. |
-| `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | Passwords and alias for that keystore. |
+| `LASTFM_API_KEY`, `LASTFM_API_SECRET` | bakes an API key into the app so nobody has to paste one |
+| `SIGNING_KEYSTORE_BASE64`, `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`, `SIGNING_KEY_PASSWORD` | signs every build with the same key, so updates install over the old version |
 
-To create a keystore and get its base64 for the secret:
+To make a keystore:
 
 ```sh
 keytool -genkeypair -v -keystore release.keystore -alias larpfm -keyalg RSA -keysize 4096 -validity 10000
 base64 -w0 release.keystore
 ```
 
-## Project layout
+The code is split in two:
 
-- `core/`: plain Kotlin with no Android dependencies, unit-tested on the JVM. It holds:
-  - the scrobbling rules and play-time tracking (`PlaybackTracker`)
-  - the LARP copy logic (`Larp`)
-  - the Last.fm API client
-- `app/`: the Android app.
-  - `ScrobbleListenerService` is a notification listener that follows every media session.
-  - `FlushWorker` sends queued scrobbles with WorkManager.
-  - The UI is built with Jetpack Compose.
+- `core/` is plain Kotlin with unit tests. It has the scrobble rules, the LARP logic, the
+  album title cleanup and the Last.fm client.
+- `app/` is the Android app. It uses Jetpack Compose for the UI, a notification listener that
+  follows media sessions, and WorkManager to send scrobbles.
+
+</details>
