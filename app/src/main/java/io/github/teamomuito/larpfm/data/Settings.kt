@@ -38,6 +38,11 @@ class Settings(context: Context) {
     /** When off, scrobbles carry only the artist and track, with no album. */
     val sendAlbum: StateFlow<Boolean> = _sendAlbum.asStateFlow()
 
+    private val _cleanAlbumTitles = MutableStateFlow(prefs.getBoolean(KEY_CLEAN_ALBUM_TITLES, false))
+
+    /** Strip anything in (parentheses) or [brackets] from album titles, e.g. "(2011 Remaster)". */
+    val cleanAlbumTitles: StateFlow<Boolean> = _cleanAlbumTitles.asStateFlow()
+
     private val _autoLarp = MutableStateFlow(prefs.getInt(KEY_AUTO_LARP, 1))
 
     /** How many times each play is scrobbled automatically; 1 means just once. */
@@ -84,6 +89,11 @@ class Settings(context: Context) {
     fun setSendAlbum(send: Boolean) {
         prefs.edit { putBoolean(KEY_SEND_ALBUM, send) }
         _sendAlbum.value = send
+    }
+
+    fun setCleanAlbumTitles(clean: Boolean) {
+        prefs.edit { putBoolean(KEY_CLEAN_ALBUM_TITLES, clean) }
+        _cleanAlbumTitles.value = clean
     }
 
     fun setAutoLarp(times: Int) {
@@ -140,6 +150,7 @@ class Settings(context: Context) {
         const val KEY_ENABLED = "scrobbling_enabled"
         const val KEY_THRESHOLD_PERCENT = "threshold_percent"
         const val KEY_SEND_ALBUM = "send_album"
+        const val KEY_CLEAN_ALBUM_TITLES = "clean_album_titles"
         const val KEY_AUTO_LARP = "auto_larp"
         const val KEY_SEEN_APPS = "seen_apps"
         const val KEY_DISABLED_APPS = "disabled_apps"

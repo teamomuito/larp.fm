@@ -14,6 +14,7 @@ import android.util.Log
 import io.github.teamomuito.larpfm.core.Clock
 import io.github.teamomuito.larpfm.core.PlaybackTracker
 import io.github.teamomuito.larpfm.core.Scrobble
+import io.github.teamomuito.larpfm.core.TitleCleaner
 import io.github.teamomuito.larpfm.core.Track
 import io.github.teamomuito.larpfm.core.TrackerEvent
 import io.github.teamomuito.larpfm.data.NowPlaying
@@ -124,13 +125,13 @@ class ScrobbleListenerService : NotificationListenerService() {
         private fun nowPlaying(track: Track) {
             if (!shouldScrobble()) return
             graph.repository.setNowPlaying(NowPlaying(track, appPackage))
-            val sent = withAlbumSetting(track)
+            val sent = withAlbumSettings(track)
             graph.scope.launch { graph.submitter.sendNowPlaying(sent) }
         }
 
         private fun scrobble(scrobble: Scrobble) {
             if (!shouldScrobble()) return
-            val sent = scrobble.copy(track = withAlbumSetting(scrobble.track))
+            val sent = scrobble.copy(track = withAlbumSettings(scrobble.track))
             val times = graph.settings.autoLarp.value
             graph.scope.launch {
                 graph.repository.enqueue(sent, appPackage, times)
@@ -138,8 +139,14 @@ class ScrobbleListenerService : NotificationListenerService() {
             }
         }
 
-        private fun withAlbumSetting(track: Track) =
-            if (graph.settings.sendAlbum.value) track else track.withoutAlbum()
+        private fun withAlbumSettings(track: Track): Track {
+            val settings = graph.settings
+            return when {
+                !settings.sendAlbum.value -> track.withoutAlbum()
+                settings.cleanAlbumTitles.value -> track.copy(album = track.album?.let(TitleCleaner::stripBrackets))
+                else -> track
+            }
+        }
 
         private fun shouldScrobble(): Boolean {
             val settings = graph.settings

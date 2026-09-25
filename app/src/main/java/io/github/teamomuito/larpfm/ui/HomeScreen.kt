@@ -63,6 +63,7 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
     val lastError by viewModel.lastError.collectAsStateWithLifecycle()
     val thresholdPercent by viewModel.thresholdPercent.collectAsStateWithLifecycle()
     val sendAlbum by viewModel.sendAlbum.collectAsStateWithLifecycle()
+    val cleanAlbumTitles by viewModel.cleanAlbumTitles.collectAsStateWithLifecycle()
     val autoLarp by viewModel.autoLarp.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
@@ -124,6 +125,8 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
                     onThresholdChange = viewModel::setThresholdPercent,
                     sendAlbum = sendAlbum,
                     onSendAlbumChange = viewModel::setSendAlbum,
+                    cleanAlbumTitles = cleanAlbumTitles,
+                    onCleanAlbumTitlesChange = viewModel::setCleanAlbumTitles,
                     autoLarp = autoLarp,
                     onAutoLarpChange = viewModel::setAutoLarp,
                 )
@@ -235,6 +238,8 @@ private fun SettingsCard(
     onThresholdChange: (Int) -> Unit,
     sendAlbum: Boolean,
     onSendAlbumChange: (Boolean) -> Unit,
+    cleanAlbumTitles: Boolean,
+    onCleanAlbumTitlesChange: (Boolean) -> Unit,
     autoLarp: Int,
     onAutoLarpChange: (Int) -> Unit,
 ) {
@@ -261,6 +266,20 @@ private fun SettingsCard(
                     )
                 }
                 Switch(checked = sendAlbum, onCheckedChange = onSendAlbumChange)
+            }
+            Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Clean album titles", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Removes anything in ( ) or [ ], e.g. \"Iron Maiden (Remaster) [Special]\" becomes \"Iron Maiden\"",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(
+                    checked = cleanAlbumTitles,
+                    onCheckedChange = onCleanAlbumTitlesChange,
+                    enabled = sendAlbum,
+                )
             }
 
             HorizontalDivider()

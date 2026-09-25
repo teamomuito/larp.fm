@@ -13,6 +13,9 @@ Scrobbles made while offline are queued and sent when you're back online.
   enough. Tracks of 30 seconds or less never count, and tracks whose length the player doesn't
   report need the full 4 minutes.
 - **Scrobble album**: turn it off to send only the artist and track, with the album left blank.
+- **Clean album titles**: removes anything in `( )` or `[ ]` from album titles, so
+  "Iron Maiden (Remaster) [Special]" is scrobbled as "Iron Maiden". This also strips brackets
+  that are part of an album's real name. If nothing would be left, the title is kept as it is.
 - **Auto-LARP**: scrobble every play 1× to 5×.
 - **LARP button**: each recent scrobble has one. Every tap scrobbles that play once more, up to
   5× in total. Last.fm drops a scrobble that repeats one it already has, so each copy is

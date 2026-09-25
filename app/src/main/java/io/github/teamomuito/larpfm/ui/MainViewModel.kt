@@ -31,6 +31,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val scrobblingEnabled = settings.scrobblingEnabled
     val thresholdPercent = settings.thresholdPercent
     val sendAlbum = settings.sendAlbum
+    val cleanAlbumTitles = settings.cleanAlbumTitles
     val autoLarp = settings.autoLarp
     val apps = settings.apps
     val nowPlaying = repository.nowPlaying
@@ -93,6 +94,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setThresholdPercent(percent: Int) = settings.setThresholdPercent(percent)
 
     fun setSendAlbum(send: Boolean) = settings.setSendAlbum(send)
+
+    fun setCleanAlbumTitles(clean: Boolean) = settings.setCleanAlbumTitles(clean)
 
     fun setAutoLarp(times: Int) = settings.setAutoLarp(times)
 
