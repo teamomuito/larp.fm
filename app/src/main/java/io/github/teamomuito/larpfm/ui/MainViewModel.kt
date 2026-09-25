@@ -8,6 +8,7 @@ import io.github.teamomuito.larpfm.data.Account
 import io.github.teamomuito.larpfm.data.ScrobbleEntry
 import io.github.teamomuito.larpfm.graph
 import io.github.teamomuito.larpfm.lastfm.LastFmException
+import io.github.teamomuito.larpfm.lastfm.RecentTracks
 import io.github.teamomuito.larpfm.work.FlushWorker
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -20,6 +21,14 @@ sealed interface LoginState {
     data object Idle : LoginState
     data object Loading : LoginState
     data class Error(val message: String) : LoginState
+}
+
+/** The result of asking Last.fm what it has recorded for the account. */
+sealed interface LastFmCheck {
+    data object Idle : LastFmCheck
+    data object Loading : LastFmCheck
+    data class Done(val recent: RecentTracks) : LastFmCheck
+    data class Error(val message: String) : LastFmCheck
 }
 
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -38,6 +47,10 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val recent = repository.recent
     val pendingCount = repository.pendingCount
     val lastError = repository.lastError
+    val apiLog = repository.apiLog
+
+    private val _lastFmCheck = MutableStateFlow<LastFmCheck>(LastFmCheck.Idle)
+    val lastFmCheck = _lastFmCheck.asStateFlow()
 
     val savedApiKey: String get() = settings.apiKey
     val savedApiSecret: String get() = settings.apiSecret
@@ -50,6 +63,21 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     init {
         refreshNotificationAccess()
+    }
+
+    fun checkLastFm() {
+        if (_lastFmCheck.value == LastFmCheck.Loading) return
+        _lastFmCheck.value = LastFmCheck.Loading
+        viewModelScope.launch {
+            _lastFmCheck.value = try {
+                val recent = withContext(Dispatchers.IO) { graph.submitter.checkLastFm() }
+                if (recent == null) LastFmCheck.Error("Not signed in") else LastFmCheck.Done(recent)
+            } catch (e: LastFmException) {
+                LastFmCheck.Error(e.message ?: "Last.fm error ${e.code}")
+            } catch (e: IOException) {
+                LastFmCheck.Error("Couldn't reach Last.fm. Check your connection.")
+            }
+        }
     }
 
     fun refreshNotificationAccess() {

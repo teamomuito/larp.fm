@@ -10,6 +10,9 @@ import kotlinx.coroutines.flow.update
 
 data class NowPlaying(val track: Track, val packageName: String)
 
+/** One raw reply from Last.fm, kept so problems can be diagnosed from the app. */
+data class ApiLogEntry(val timeMs: Long, val method: String, val httpCode: Int, val body: String)
+
 /** Scrobble storage plus the live state the UI shows. The database calls block; use a background thread. */
 class ScrobbleRepository(private val db: ScrobbleDb) {
     private val _recent = MutableStateFlow<List<ScrobbleEntry>>(emptyList())
@@ -25,6 +28,16 @@ class ScrobbleRepository(private val db: ScrobbleDb) {
 
     /** Why the last attempt to send scrobbles failed, if it did. */
     val lastError: StateFlow<String?> = _lastError.asStateFlow()
+
+    private val _apiLog = MutableStateFlow<List<ApiLogEntry>>(emptyList())
+
+    /** The latest replies from Last.fm, newest first. */
+    val apiLog: StateFlow<List<ApiLogEntry>> = _apiLog.asStateFlow()
+
+    fun logResponse(method: String, httpCode: Int, body: String) {
+        val entry = ApiLogEntry(System.currentTimeMillis(), method, httpCode, body.take(LOG_BODY_LENGTH))
+        _apiLog.update { (listOf(entry) + it).take(LOG_SIZE) }
+    }
 
     /** Queues [scrobble], counted [times] times in total (auto-LARP). */
     fun enqueue(scrobble: Scrobble, packageName: String, times: Int = 1) {
@@ -65,5 +78,7 @@ class ScrobbleRepository(private val db: ScrobbleDb) {
     private companion object {
         const val HISTORY_SIZE = 500
         const val RECENT_SIZE = 50
+        const val LOG_SIZE = 5
+        const val LOG_BODY_LENGTH = 600
     }
 }

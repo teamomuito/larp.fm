@@ -4,6 +4,7 @@ import android.util.Log
 import io.github.teamomuito.larpfm.core.Track
 import io.github.teamomuito.larpfm.lastfm.LastFmClient
 import io.github.teamomuito.larpfm.lastfm.LastFmException
+import io.github.teamomuito.larpfm.lastfm.RecentTracks
 import io.github.teamomuito.larpfm.lastfm.UrlConnectionTransport
 import java.io.IOException
 
@@ -26,7 +27,10 @@ class ScrobbleSubmitter(
 
     private val transport = UrlConnectionTransport(userAgent)
 
-    fun client(apiKey: String, apiSecret: String) = LastFmClient(apiKey, apiSecret, transport)
+    fun client(apiKey: String, apiSecret: String) =
+        LastFmClient(apiKey, apiSecret, transport) { method, response ->
+            repository.logResponse(method, response.code, response.body)
+        }
 
     fun sendNowPlaying(track: Track) {
         val account = settings.account.value ?: return
@@ -36,7 +40,15 @@ class ScrobbleSubmitter(
             Log.i(TAG, "Couldn't send now playing", e)
         } catch (e: LastFmException) {
             Log.i(TAG, "Couldn't send now playing", e)
+            repository.setLastError("Now playing: ${e.message}")
         }
+    }
+
+    /** Asks Last.fm what it has actually recorded for the signed-in account. */
+    @Throws(IOException::class, LastFmException::class)
+    fun checkLastFm(): RecentTracks? {
+        val account = settings.account.value ?: return null
+        return client(account.apiKey, account.apiSecret).getRecentTracks(account.username, limit = 5)
     }
 
     /** Sends every queued scrobble, in batches. */

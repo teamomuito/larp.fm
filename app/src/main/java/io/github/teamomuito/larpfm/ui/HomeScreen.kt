@@ -40,6 +40,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
@@ -47,6 +48,7 @@ import io.github.teamomuito.larpfm.R
 import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.ScrobbleRules
 import io.github.teamomuito.larpfm.data.Account
+import io.github.teamomuito.larpfm.data.ApiLogEntry
 import io.github.teamomuito.larpfm.data.AppSetting
 import io.github.teamomuito.larpfm.data.NowPlaying
 import io.github.teamomuito.larpfm.data.ScrobbleEntry
@@ -67,6 +69,8 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
     val autoLarp by viewModel.autoLarp.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
+    val lastFmCheck by viewModel.lastFmCheck.collectAsStateWithLifecycle()
+    val apiLog by viewModel.apiLog.collectAsStateWithLifecycle()
 
     Scaffold { padding ->
         LazyColumn(
@@ -118,6 +122,8 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
             if (pendingCount > 0 || lastError != null) {
                 item { QueueCard(pendingCount, lastError, onSendNow = viewModel::sendNow) }
             }
+
+            item { LastFmCheckCard(account.username, lastFmCheck, apiLog, onCheck = viewModel::checkLastFm) }
 
             item {
                 SettingsCard(
@@ -233,6 +239,75 @@ private fun QueueCard(pendingCount: Int, lastError: String?, onSendNow: () -> Un
 }
 
 @Composable
+private fun LastFmCheckCard(username: String, check: LastFmCheck, apiLog: List<ApiLogEntry>, onCheck: () -> Unit) {
+    val context = LocalContext.current
+    Card(Modifier.fillMaxWidth()) {
+        Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            Text("Check Last.fm", style = MaterialTheme.typography.titleSmall)
+            Text(
+                "See what Last.fm has actually recorded for $username.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            FilledTonalButton(onClick = onCheck, enabled = check != LastFmCheck.Loading) {
+                Text(if (check == LastFmCheck.Loading) "Checking…" else "Check now")
+            }
+            when (check) {
+                LastFmCheck.Idle, LastFmCheck.Loading -> Unit
+                is LastFmCheck.Error -> Text(
+                    check.message,
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+                is LastFmCheck.Done -> {
+                    check.recent.total?.let {
+                        Text("$it scrobbles on Last.fm", style = MaterialTheme.typography.bodyMedium)
+                    }
+                    if (check.recent.tracks.isEmpty()) {
+                        Text("Last.fm has no recent tracks", style = MaterialTheme.typography.bodySmall)
+                    }
+                    for (track in check.recent.tracks) {
+                        val time = if (track.nowPlaying) {
+                            "now playing"
+                        } else {
+                            track.timestampSec?.let {
+                                DateUtils.getRelativeTimeSpanString(
+                                    it * 1000,
+                                    System.currentTimeMillis(),
+                                    DateUtils.MINUTE_IN_MILLIS,
+                                ).toString()
+                            }.orEmpty()
+                        }
+                        Text(
+                            "${track.title} · ${track.artist} · $time",
+                            style = MaterialTheme.typography.bodySmall,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                        )
+                    }
+                }
+            }
+            if (apiLog.isNotEmpty()) {
+                HorizontalDivider()
+                Text("Latest replies from Last.fm", style = MaterialTheme.typography.labelMedium)
+                for (entry in apiLog) {
+                    val time = DateUtils.formatDateTime(context, entry.timeMs, DateUtils.FORMAT_SHOW_TIME)
+                    Text(
+                        "$time · ${entry.method} · HTTP ${entry.httpCode}",
+                        style = MaterialTheme.typography.labelSmall,
+                    )
+                    Text(
+                        entry.body,
+                        style = MaterialTheme.typography.bodySmall.copy(fontFamily = FontFamily.Monospace),
+                        maxLines = 6,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+            }
+        }
+    }
+}
+
+@Composable
 private fun SettingsCard(
     thresholdPercent: Int,
     onThresholdChange: (Int) -> Unit,
@@ -334,7 +409,7 @@ private fun ScrobbleRow(entry: ScrobbleEntry, onLarp: () -> Unit) {
         ).toString()
     }
     val status = when (entry.status) {
-        ScrobbleStatus.SENT -> time
+        ScrobbleStatus.SENT -> "$time · sent"
         ScrobbleStatus.PENDING -> "$time · waiting to send"
         ScrobbleStatus.IGNORED, ScrobbleStatus.REJECTED -> "$time · ${entry.message ?: "not scrobbled"}"
     }
