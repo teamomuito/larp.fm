@@ -27,6 +27,7 @@ And yes, it larps. Tap LARP on a scrobble and it counts again.
 - scrobble after anywhere from 1% to 100% of a song (Last.fm's default is 50%)
 - send the album, or just artist + track
 - clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
+- scrobble just the first artist: `Artist A feat. Artist B` becomes `Artist A`
 - LARP any recent play up to 5 times
 - auto-LARP every song if you're feeling bold
 - choose which apps get scrobbled

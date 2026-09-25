@@ -43,6 +43,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val thresholdPercent = settings.thresholdPercent
     val sendAlbum = settings.sendAlbum
     val cleanAlbumTitles = settings.cleanAlbumTitles
+    val firstArtistOnly = settings.firstArtistOnly
     val autoLarp = settings.autoLarp
     val apps = settings.apps
     val nowPlaying = repository.nowPlaying
@@ -148,6 +149,8 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setSendAlbum(send: Boolean) = settings.setSendAlbum(send)
 
     fun setCleanAlbumTitles(clean: Boolean) = settings.setCleanAlbumTitles(clean)
+
+    fun setFirstArtistOnly(firstOnly: Boolean) = settings.setFirstArtistOnly(firstOnly)
 
     fun setAutoLarp(times: Int) = settings.setAutoLarp(times)
 

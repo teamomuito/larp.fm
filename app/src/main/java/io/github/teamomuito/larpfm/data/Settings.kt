@@ -43,6 +43,11 @@ class Settings(context: Context) {
     /** Strip anything in (parentheses) or [brackets] from album titles, e.g. "(2011 Remaster)". */
     val cleanAlbumTitles: StateFlow<Boolean> = _cleanAlbumTitles.asStateFlow()
 
+    private val _firstArtistOnly = MutableStateFlow(prefs.getBoolean(KEY_FIRST_ARTIST_ONLY, false))
+
+    /** Scrobble "Artist A, Artist B" or "Artist A feat. Artist B" as just "Artist A". */
+    val firstArtistOnly: StateFlow<Boolean> = _firstArtistOnly.asStateFlow()
+
     private val _autoLarp = MutableStateFlow(prefs.getInt(KEY_AUTO_LARP, 1))
 
     /** How many times each play is scrobbled automatically; 1 means just once. */
@@ -104,6 +109,11 @@ class Settings(context: Context) {
         _cleanAlbumTitles.value = clean
     }
 
+    fun setFirstArtistOnly(firstOnly: Boolean) {
+        prefs.edit { putBoolean(KEY_FIRST_ARTIST_ONLY, firstOnly) }
+        _firstArtistOnly.value = firstOnly
+    }
+
     fun setAutoLarp(times: Int) {
         val value = times.coerceIn(1, Larp.MAX_TIMES)
         prefs.edit { putInt(KEY_AUTO_LARP, value) }
@@ -159,6 +169,7 @@ class Settings(context: Context) {
         const val KEY_THRESHOLD_PERCENT = "threshold_percent"
         const val KEY_SEND_ALBUM = "send_album"
         const val KEY_CLEAN_ALBUM_TITLES = "clean_album_titles"
+        const val KEY_FIRST_ARTIST_ONLY = "first_artist_only"
         const val KEY_AUTO_LARP = "auto_larp"
         const val KEY_SEEN_APPS = "seen_apps"
         const val KEY_DISABLED_APPS = "disabled_apps"

@@ -11,6 +11,7 @@ import android.os.Looper
 import android.os.SystemClock
 import android.service.notification.NotificationListenerService
 import android.util.Log
+import io.github.teamomuito.larpfm.core.ArtistNames
 import io.github.teamomuito.larpfm.core.Clock
 import io.github.teamomuito.larpfm.core.PlaybackTracker
 import io.github.teamomuito.larpfm.core.Scrobble
@@ -125,13 +126,13 @@ class ScrobbleListenerService : NotificationListenerService() {
         private fun nowPlaying(track: Track) {
             if (!shouldScrobble()) return
             graph.repository.setNowPlaying(NowPlaying(track, appPackage))
-            val sent = withAlbumSettings(track)
+            val sent = withTagSettings(track)
             graph.scope.launch { graph.submitter.sendNowPlaying(sent) }
         }
 
         private fun scrobble(scrobble: Scrobble) {
             if (!shouldScrobble()) return
-            val sent = scrobble.copy(track = withAlbumSettings(scrobble.track))
+            val sent = scrobble.copy(track = withTagSettings(scrobble.track))
             val times = graph.settings.autoLarp.value
             graph.scope.launch {
                 graph.repository.enqueue(sent, appPackage, times)
@@ -139,12 +140,14 @@ class ScrobbleListenerService : NotificationListenerService() {
             }
         }
 
-        private fun withAlbumSettings(track: Track): Track {
+        /** Applies the artist and album settings to what's sent to Last.fm. */
+        private fun withTagSettings(track: Track): Track {
             val settings = graph.settings
+            val artist = if (settings.firstArtistOnly.value) track.copy(artist = ArtistNames.first(track.artist)) else track
             return when {
-                !settings.sendAlbum.value -> track.withoutAlbum()
-                settings.cleanAlbumTitles.value -> track.copy(album = track.album?.let(TitleCleaner::stripBrackets))
-                else -> track
+                !settings.sendAlbum.value -> artist.withoutAlbum()
+                settings.cleanAlbumTitles.value -> artist.copy(album = artist.album?.let(TitleCleaner::stripBrackets))
+                else -> artist
             }
         }
 

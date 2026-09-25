@@ -66,6 +66,7 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
     val thresholdPercent by viewModel.thresholdPercent.collectAsStateWithLifecycle()
     val sendAlbum by viewModel.sendAlbum.collectAsStateWithLifecycle()
     val cleanAlbumTitles by viewModel.cleanAlbumTitles.collectAsStateWithLifecycle()
+    val firstArtistOnly by viewModel.firstArtistOnly.collectAsStateWithLifecycle()
     val autoLarp by viewModel.autoLarp.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
@@ -133,6 +134,8 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
                     onSendAlbumChange = viewModel::setSendAlbum,
                     cleanAlbumTitles = cleanAlbumTitles,
                     onCleanAlbumTitlesChange = viewModel::setCleanAlbumTitles,
+                    firstArtistOnly = firstArtistOnly,
+                    onFirstArtistOnlyChange = viewModel::setFirstArtistOnly,
                     autoLarp = autoLarp,
                     onAutoLarpChange = viewModel::setAutoLarp,
                 )
@@ -315,6 +318,8 @@ private fun SettingsCard(
     onSendAlbumChange: (Boolean) -> Unit,
     cleanAlbumTitles: Boolean,
     onCleanAlbumTitlesChange: (Boolean) -> Unit,
+    firstArtistOnly: Boolean,
+    onFirstArtistOnlyChange: (Boolean) -> Unit,
     autoLarp: Int,
     onAutoLarpChange: (Int) -> Unit,
 ) {
@@ -332,6 +337,16 @@ private fun SettingsCard(
             )
 
             HorizontalDivider()
+            Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("First artist only", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "\"Artist A, Artist B\" or \"Artist A feat. Artist B\" is scrobbled as \"Artist A\"",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(checked = firstArtistOnly, onCheckedChange = onFirstArtistOnlyChange)
+            }
             Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
                 Column(Modifier.weight(1f)) {
                     Text("Scrobble album", style = MaterialTheme.typography.titleSmall)
