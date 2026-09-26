@@ -12,7 +12,8 @@ interface Clock {
 
 sealed interface TrackerEvent {
     data class NowPlaying(val track: Track) : TrackerEvent
-    data class ScrobbleReady(val scrobble: Scrobble) : TrackerEvent
+    /** [replay] is true when the song was already scrobbled and then paused and resumed, skipped back or seeked. */
+    data class ScrobbleReady(val scrobble: Scrobble, val replay: Boolean = false) : TrackerEvent
 }
 
 /** Where the player says it is: [ms] into the track as of [atElapsedMs] on the [Clock.elapsedMs] timeline. */
@@ -42,6 +43,7 @@ class PlaybackTracker(
     private var playingSinceMs = 0L
     private var startedAtEpochMs: Long? = null
     private var scrobbled = false
+    private var replay = false
     private var lastPosition: Position? = null
 
     fun onMetadata(newTrack: Track?): List<TrackerEvent> {
@@ -58,6 +60,7 @@ class PlaybackTracker(
         track = newTrack
         playedMs = 0
         scrobbled = false
+        replay = false
         startedAtEpochMs = null
         lastPosition = null
         if (isPlaying) {
@@ -107,6 +110,7 @@ class PlaybackTracker(
         val previousStartMs = startedAtEpochMs
         if (!scrobbled || previousStartMs == null || !rescrobble()) return
         scrobbled = false
+        replay = true
         playedMs = 0
         playingSinceMs = clock.elapsedMs()
         // Last.fm drops a scrobble with the same track and timestamp as one it already has.
@@ -121,7 +125,7 @@ class PlaybackTracker(
         val threshold = ScrobbleRules.thresholdMs(current.durationMs, thresholdPercent()) ?: return null
         if (totalPlayedMs() < threshold) return null
         scrobbled = true
-        return TrackerEvent.ScrobbleReady(Scrobble(current, startedAt / 1000))
+        return TrackerEvent.ScrobbleReady(Scrobble(current, startedAt / 1000), replay)
     }
 
     /** How much longer the current track must play to qualify, or null if there's nothing to wait for. */

@@ -44,6 +44,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.teamomuito.larpfm.R
+import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.ScrobbleRules
 import io.github.teamomuito.larpfm.data.Account
 import io.github.teamomuito.larpfm.data.ApiLogEntry
@@ -66,6 +67,7 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
     val cleanAlbumTitles by viewModel.cleanAlbumTitles.collectAsStateWithLifecycle()
     val firstArtistOnly by viewModel.firstArtistOnly.collectAsStateWithLifecycle()
     val rescrobbleOnRestart by viewModel.rescrobbleOnRestart.collectAsStateWithLifecycle()
+    val autoLarp by viewModel.autoLarp.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val lastFmCheck by viewModel.lastFmCheck.collectAsStateWithLifecycle()
@@ -136,6 +138,8 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
                     onFirstArtistOnlyChange = viewModel::setFirstArtistOnly,
                     rescrobbleOnRestart = rescrobbleOnRestart,
                     onRescrobbleOnRestartChange = viewModel::setRescrobbleOnRestart,
+                    autoLarp = autoLarp,
+                    onAutoLarpChange = viewModel::setAutoLarp,
                 )
             }
 
@@ -320,6 +324,8 @@ private fun SettingsCard(
     onFirstArtistOnlyChange: (Boolean) -> Unit,
     rescrobbleOnRestart: Boolean,
     onRescrobbleOnRestartChange: (Boolean) -> Unit,
+    autoLarp: Int,
+    onAutoLarpChange: (Int) -> Unit,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -382,6 +388,24 @@ private fun SettingsCard(
                 }
                 Switch(checked = rescrobbleOnRestart, onCheckedChange = onRescrobbleOnRestartChange)
             }
+
+            HorizontalDivider()
+            Text(
+                if (autoLarp == 1) "Auto-LARP: off" else "Auto-LARP: every song counts $autoLarp×",
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 8.dp),
+            )
+            Text(
+                "The first scrobble goes out right away. The rest wait in the app and go out one an hour, " +
+                    "each timestamped an hour after the last. Replays from skip & pause count once.",
+                style = MaterialTheme.typography.bodySmall,
+            )
+            Slider(
+                value = autoLarp.toFloat(),
+                onValueChange = { onAutoLarpChange(it.roundToInt()) },
+                valueRange = 1f..Larp.MAX_TIMES.toFloat(),
+                steps = Larp.MAX_TIMES - 2,
+            )
         }
     }
 }
@@ -421,11 +445,16 @@ private fun ScrobbleRow(entry: ScrobbleEntry) {
         ScrobbleStatus.PENDING -> "$time · waiting to send"
         ScrobbleStatus.IGNORED, ScrobbleStatus.REJECTED -> "$time · ${entry.message ?: "not scrobbled"}"
     }
+    val larp = when {
+        entry.larpCopies == 0 -> ""
+        entry.queuedCopies == 0 -> " · LARP ×${entry.timesScrobbled}"
+        else -> " · LARP ×${entry.timesScrobbled}, ${entry.queuedCopies} queued"
+    }
     Column(Modifier.padding(vertical = 8.dp)) {
         Text(track.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(track.artist, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
         Text(
-            status,
+            status + larp,
             style = MaterialTheme.typography.bodySmall,
             color = when (entry.status) {
                 ScrobbleStatus.SENT, ScrobbleStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant

@@ -29,6 +29,7 @@ And yes, it larps. Pause and resume a song, skip back or seek, and it counts aga
 - clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
 - scrobble just the first artist: `Artist A feat. Artist B` becomes `Artist A`
 - LARP: songs scrobble again every time you pause and resume, skip back or seek
+- auto-LARP: every song counts up to 10×, one extra scrobble an hour
 - choose which apps get scrobbled
 - pink, obviously
 
@@ -58,6 +59,13 @@ Once a song has scrobbled, pausing and resuming it, skipping back to the start, 
 repeat-one or dragging the progress bar starts a new play. That play scrobbles again once it
 passes the threshold, with its own timestamp so Last.fm doesn't throw it out as a duplicate. Turn
 it off with **Rescrobble on skip & pause** in the settings.
+
+**Auto-LARP** makes every song count up to 10 times. The first scrobble goes out right away and
+the rest wait in the app, one an hour, each timestamped an hour after the last. Play Iron Maiden
+at 12:00 with auto-LARP at 3× and it's scrobbled at 12:00, 13:00 and 14:00. Copies only go out
+once Last.fm has taken the original, real plays are always sent first, and copies hold off once
+2,300 scrobbles have gone out in a day so your real listening stays under Last.fm's 2,800 limit.
+Replays from skip & pause count once and don't get copies.
 
 Last.fm isn't a fan of fake scrobbles, so larp responsibly.
 

@@ -119,7 +119,7 @@ class ScrobbleListenerService : NotificationListenerService() {
             for (event in events) {
                 when (event) {
                     is TrackerEvent.NowPlaying -> nowPlaying(event.track)
-                    is TrackerEvent.ScrobbleReady -> scrobble(event.scrobble)
+                    is TrackerEvent.ScrobbleReady -> scrobble(event.scrobble, event.replay)
                 }
             }
             if (!tracker.isPlaying || tracker.track == null) graph.repository.clearNowPlaying(appPackage)
@@ -136,11 +136,13 @@ class ScrobbleListenerService : NotificationListenerService() {
             graph.scope.launch { graph.submitter.sendNowPlaying(sent) }
         }
 
-        private fun scrobble(scrobble: Scrobble) {
+        /** Replays (pause/resume, skip back, seek) count once; only a song's first play gets auto-LARP copies. */
+        private fun scrobble(scrobble: Scrobble, replay: Boolean) {
             if (!shouldScrobble()) return
             val sent = scrobble.copy(track = withTagSettings(scrobble.track))
+            val times = if (replay) 1 else graph.settings.autoLarp.value
             graph.scope.launch {
-                graph.repository.enqueue(sent, appPackage)
+                graph.repository.enqueue(sent, appPackage, times)
                 FlushWorker.enqueue(applicationContext)
             }
         }

@@ -173,7 +173,7 @@ class PlaybackTrackerTest {
         assertEquals(100_000L, restarting.msUntilScrobble())
 
         clock.advance(100_000)
-        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_105)), restarting.checkThreshold())
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_105), replay = true), restarting.checkThreshold())
     }
 
     @Test
@@ -199,7 +199,7 @@ class PlaybackTrackerTest {
         assertEquals(100_000L, restarting.msUntilScrobble())
 
         clock.advance(100_000)
-        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_110)), restarting.checkThreshold())
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_110), replay = true), restarting.checkThreshold())
     }
 
     @Test
@@ -221,6 +221,17 @@ class PlaybackTrackerTest {
 
         assertEquals(listOf(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_000))), events)
         assertEquals(100_000L, restarting.msUntilScrobble())
+    }
+
+    @Test
+    fun `a different song is not a replay`() {
+        val next = Track("Artist", "Next", durationMs = 180_000)
+        playUntilScrobbled()
+        restarting.onPlaybackState(true, at(0))
+        restarting.onMetadata(next)
+        clock.advance(90_000)
+
+        assertEquals(false, restarting.checkThreshold()?.replay)
     }
 
     @Test
@@ -260,7 +271,7 @@ class PlaybackTrackerTest {
         fast.onPlaybackState(true)
         clock.advance(400)
 
-        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(short, 1_700_000_001)), fast.checkThreshold())
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(short, 1_700_000_001), replay = true), fast.checkThreshold())
     }
 
     @Test
