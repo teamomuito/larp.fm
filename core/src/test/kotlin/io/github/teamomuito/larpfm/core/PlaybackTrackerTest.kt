@@ -26,7 +26,7 @@ class PlaybackTrackerTest {
     @Test
     fun `uses the configured threshold, read on every check`() {
         var percent = 10
-        val custom = PlaybackTracker(clock) { percent }
+        val custom = PlaybackTracker(clock, thresholdPercent = { percent })
         custom.onMetadata(song)
         custom.onPlaybackState(true)
         assertEquals(20_000L, custom.msUntilScrobble())
@@ -147,6 +147,134 @@ class PlaybackTrackerTest {
         assertEquals(listOf(TrackerEvent.NowPlaying(song)), tracker.onMetadata(song))
         assertEquals(0L, tracker.totalPlayedMs())
         assertEquals(100_000L, tracker.msUntilScrobble())
+    }
+
+    private var rescrobble = true
+    private val restarting = PlaybackTracker(clock, rescrobble = { rescrobble })
+
+    /** Where the player is right now, if it has played [ms] of the song. */
+    private fun at(ms: Long, speed: Float = 1f) = Position(ms, clock.elapsed, speed)
+
+    /** Plays [song] from the start until its first scrobble. */
+    private fun playUntilScrobbled() {
+        restarting.onMetadata(song)
+        restarting.onPlaybackState(true, at(0))
+        clock.advance(100_000)
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_000)), restarting.checkThreshold())
+    }
+
+    @Test
+    fun `pausing and resuming a scrobbled song starts a new play`() {
+        playUntilScrobbled()
+        restarting.onPlaybackState(false, at(100_000))
+        clock.advance(5_000)
+
+        assertEquals(listOf(TrackerEvent.NowPlaying(song)), restarting.onPlaybackState(true, at(100_000)))
+        assertEquals(100_000L, restarting.msUntilScrobble())
+
+        clock.advance(100_000)
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_105)), restarting.checkThreshold())
+    }
+
+    @Test
+    fun `pausing before the threshold keeps counting the same play`() {
+        restarting.onMetadata(song)
+        restarting.onPlaybackState(true, at(0))
+        clock.advance(60_000)
+        restarting.onPlaybackState(false, at(60_000))
+        clock.advance(5_000)
+        restarting.onPlaybackState(true, at(60_000))
+
+        assertEquals(40_000L, restarting.msUntilScrobble())
+        clock.advance(40_000)
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_000)), restarting.checkThreshold())
+    }
+
+    @Test
+    fun `skipping back to the start of a scrobbled song starts a new play`() {
+        playUntilScrobbled()
+        clock.advance(10_000)
+
+        assertEquals(emptyList<TrackerEvent>(), restarting.onPlaybackState(true, at(0)))
+        assertEquals(100_000L, restarting.msUntilScrobble())
+
+        clock.advance(100_000)
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_110)), restarting.checkThreshold())
+    }
+
+    @Test
+    fun `seeking forward counts too`() {
+        playUntilScrobbled()
+
+        restarting.onPlaybackState(true, at(150_000))
+
+        assertEquals(100_000L, restarting.msUntilScrobble())
+    }
+
+    @Test
+    fun `a jump scrobbles a play that qualified but wasn't checked yet`() {
+        restarting.onMetadata(song)
+        restarting.onPlaybackState(true, at(0))
+        clock.advance(100_500)
+
+        val events = restarting.onPlaybackState(true, at(0))
+
+        assertEquals(listOf(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_000))), events)
+        assertEquals(100_000L, restarting.msUntilScrobble())
+    }
+
+    @Test
+    fun `positions that keep up with playback are not jumps`() {
+        playUntilScrobbled()
+        clock.advance(10_000)
+        restarting.onPlaybackState(true, at(111_000, speed = 2f))
+        clock.advance(10_000)
+        restarting.onPlaybackState(true, at(131_000, speed = 2f))
+
+        assertNull(restarting.msUntilScrobble())
+    }
+
+    @Test
+    fun `positions from the previous song are forgotten`() {
+        val next = Track("Artist", "Next", durationMs = 180_000)
+        playUntilScrobbled()
+        restarting.onMetadata(next)
+        clock.advance(95_000)
+        assertTrue(restarting.checkThreshold() is TrackerEvent.ScrobbleReady)
+
+        restarting.onPlaybackState(true, at(95_000))
+
+        assertNull(restarting.msUntilScrobble())
+    }
+
+    @Test
+    fun `a new play never shares a timestamp with the last one`() {
+        val short = song.copy(durationMs = 31_000)
+        val fast = PlaybackTracker(clock, thresholdPercent = { 1 }, rescrobble = { true })
+        fast.onMetadata(short)
+        fast.onPlaybackState(true)
+        clock.advance(400)
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(short, 1_700_000_000)), fast.checkThreshold())
+        fast.onPlaybackState(false)
+        clock.advance(100)
+        fast.onPlaybackState(true)
+        clock.advance(400)
+
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(short, 1_700_000_001)), fast.checkThreshold())
+    }
+
+    @Test
+    fun `with rescrobbling off each play counts once`() {
+        rescrobble = false
+        playUntilScrobbled()
+        restarting.onPlaybackState(false, at(100_000))
+        restarting.onPlaybackState(true, at(100_000))
+        clock.advance(10_000)
+        restarting.onPlaybackState(true, at(0))
+        clock.advance(200_000)
+
+        assertNull(restarting.msUntilScrobble())
+        assertNull(restarting.checkThreshold())
     }
 
     @Test

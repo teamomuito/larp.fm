@@ -18,14 +18,14 @@ class ScrobbleRulesTest {
     @Test
     fun `custom percentage`() {
         assertEquals(2_000L, ScrobbleRules.thresholdMs(200_000, percent = 1))
-        assertEquals(180_000L, ScrobbleRules.thresholdMs(200_000, percent = 90))
-        assertEquals("still capped at 4 minutes", 240_000L, ScrobbleRules.thresholdMs(300_000, percent = 100))
+        assertEquals(60_000L, ScrobbleRules.thresholdMs(200_000, percent = 30))
+        assertEquals("still capped at 4 minutes", 240_000L, ScrobbleRules.thresholdMs(600_000, percent = 50))
         assertNull("short tracks still never count", ScrobbleRules.thresholdMs(20_000, percent = 1))
     }
 
     @Test
     fun `out of range percentages are clamped`() {
         assertEquals(2_000L, ScrobbleRules.thresholdMs(200_000, percent = 0))
-        assertEquals(200_000L, ScrobbleRules.thresholdMs(200_000, percent = 500))
+        assertEquals("no more than half", 100_000L, ScrobbleRules.thresholdMs(200_000, percent = 90))
     }
 }

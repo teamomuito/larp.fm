@@ -5,7 +5,6 @@ import android.content.Context
 import android.database.Cursor
 import android.database.sqlite.SQLiteDatabase
 import android.database.sqlite.SQLiteOpenHelper
-import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.Scrobble
 import io.github.teamomuito.larpfm.core.Track
 
@@ -28,16 +27,13 @@ data class ScrobbleEntry(
     val status: ScrobbleStatus,
     /** Why Last.fm ignored or rejected it. */
     val message: String?,
-    /** Extra copies of this play made by LARPing it. Only filled in by [ScrobbleDb.recent]. */
-    val larpCopies: Int = 0,
-) {
-    val timesScrobbled: Int get() = 1 + larpCopies
-}
+)
 
 /** Every scrobble the app has made: the pending queue plus a short history of what was sent. */
 class ScrobbleDb(context: Context) : SQLiteOpenHelper(context, "scrobbles.db", null, 2) {
 
     override fun onCreate(db: SQLiteDatabase) {
+        // larp_of marks copies made by the LARP button, which has been removed.
         db.execSQL(
             """
             CREATE TABLE scrobbles (
@@ -66,8 +62,8 @@ class ScrobbleDb(context: Context) : SQLiteOpenHelper(context, "scrobbles.db", n
         }
     }
 
-    /** Queues [scrobble] and returns its id. [larpOf] is the original's id when this is a LARP copy. */
-    fun insert(scrobble: Scrobble, packageName: String?, larpOf: Long? = null): Long {
+    /** Queues [scrobble] and returns its id. */
+    fun insert(scrobble: Scrobble, packageName: String?): Long {
         val track = scrobble.track
         val values = ContentValues().apply {
             put("artist", track.artist)
@@ -78,47 +74,17 @@ class ScrobbleDb(context: Context) : SQLiteOpenHelper(context, "scrobbles.db", n
             put("timestamp", scrobble.timestampSec)
             put("package_name", packageName)
             put("status", ScrobbleStatus.PENDING.id)
-            put("larp_of", larpOf)
         }
         return writableDatabase.insert("scrobbles", null, values)
-    }
-
-    /**
-     * Queues up to [times] extra copies of scrobble [id], stopping at [Larp.MAX_TIMES] plays in
-     * total. Returns how many copies were added.
-     */
-    fun addLarpCopies(id: Long, times: Int): Int {
-        val db = writableDatabase
-        db.beginTransaction()
-        try {
-            val original = query("SELECT * FROM scrobbles WHERE id = $id AND larp_of IS NULL").firstOrNull() ?: return 0
-            val existing = db.rawQuery("SELECT COUNT(*) FROM scrobbles WHERE larp_of = $id", null)
-                .use { if (it.moveToFirst()) it.getInt(0) else 0 }
-            val toAdd = minOf(times, Larp.MAX_TIMES - 1 - existing).coerceAtLeast(0)
-            for (copy in existing + 1..existing + toAdd) {
-                insert(Larp.copy(original.scrobble, copy), original.packageName, larpOf = id)
-            }
-            db.setTransactionSuccessful()
-            return toAdd
-        } finally {
-            db.endTransaction()
-        }
     }
 
     fun pending(limit: Int): List<ScrobbleEntry> = query(
         "SELECT * FROM scrobbles WHERE status = ${ScrobbleStatus.PENDING.id} ORDER BY timestamp LIMIT $limit",
     )
 
-    /** The latest plays, newest first. LARP copies are folded into their original's [ScrobbleEntry.larpCopies]. */
-    fun recent(limit: Int): List<ScrobbleEntry> = query(
-        """
-        SELECT s.*, (SELECT COUNT(*) FROM scrobbles c WHERE c.larp_of = s.id) AS larp_copies
-        FROM scrobbles s
-        WHERE s.larp_of IS NULL
-        ORDER BY s.timestamp DESC, s.id DESC
-        LIMIT $limit
-        """.trimIndent(),
-    )
+    /** The latest scrobbles, newest first. */
+    fun recent(limit: Int): List<ScrobbleEntry> =
+        query("SELECT * FROM scrobbles ORDER BY timestamp DESC, id DESC LIMIT $limit")
 
     fun countPending(): Int =
         readableDatabase.rawQuery("SELECT COUNT(*) FROM scrobbles WHERE status = ${ScrobbleStatus.PENDING.id}", null)
@@ -162,14 +128,12 @@ class ScrobbleDb(context: Context) : SQLiteOpenHelper(context, "scrobbles.db", n
             albumArtist = string("album_artist"),
             durationMs = long("duration_ms"),
         )
-        val larpCopiesColumn = getColumnIndex("larp_copies")
         return ScrobbleEntry(
             id = long("id"),
             scrobble = Scrobble(track, long("timestamp")),
             packageName = string("package_name"),
             status = ScrobbleStatus.of(getInt(getColumnIndexOrThrow("status"))),
             message = string("message"),
-            larpCopies = if (larpCopiesColumn >= 0) getInt(larpCopiesColumn) else 0,
         )
     }
 }

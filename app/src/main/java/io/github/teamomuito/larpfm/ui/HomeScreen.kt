@@ -21,7 +21,6 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.FilledTonalButton
@@ -45,7 +44,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.teamomuito.larpfm.R
-import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.ScrobbleRules
 import io.github.teamomuito.larpfm.data.Account
 import io.github.teamomuito.larpfm.data.ApiLogEntry
@@ -67,7 +65,7 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
     val sendAlbum by viewModel.sendAlbum.collectAsStateWithLifecycle()
     val cleanAlbumTitles by viewModel.cleanAlbumTitles.collectAsStateWithLifecycle()
     val firstArtistOnly by viewModel.firstArtistOnly.collectAsStateWithLifecycle()
-    val autoLarp by viewModel.autoLarp.collectAsStateWithLifecycle()
+    val rescrobbleOnRestart by viewModel.rescrobbleOnRestart.collectAsStateWithLifecycle()
     val apps by viewModel.apps.collectAsStateWithLifecycle()
     val recent by viewModel.recent.collectAsStateWithLifecycle()
     val lastFmCheck by viewModel.lastFmCheck.collectAsStateWithLifecycle()
@@ -136,8 +134,8 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
                     onCleanAlbumTitlesChange = viewModel::setCleanAlbumTitles,
                     firstArtistOnly = firstArtistOnly,
                     onFirstArtistOnlyChange = viewModel::setFirstArtistOnly,
-                    autoLarp = autoLarp,
-                    onAutoLarpChange = viewModel::setAutoLarp,
+                    rescrobbleOnRestart = rescrobbleOnRestart,
+                    onRescrobbleOnRestartChange = viewModel::setRescrobbleOnRestart,
                 )
             }
 
@@ -159,7 +157,7 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
                 item { Text("Nothing scrobbled yet.", style = MaterialTheme.typography.bodyMedium) }
             }
             items(recent, key = { "scrobble:" + it.id }) { entry ->
-                ScrobbleRow(entry, onLarp = { viewModel.larp(entry) })
+                ScrobbleRow(entry)
                 HorizontalDivider()
             }
         }
@@ -320,8 +318,8 @@ private fun SettingsCard(
     onCleanAlbumTitlesChange: (Boolean) -> Unit,
     firstArtistOnly: Boolean,
     onFirstArtistOnlyChange: (Boolean) -> Unit,
-    autoLarp: Int,
-    onAutoLarpChange: (Int) -> Unit,
+    rescrobbleOnRestart: Boolean,
+    onRescrobbleOnRestartChange: (Boolean) -> Unit,
 ) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
@@ -373,22 +371,17 @@ private fun SettingsCard(
             }
 
             HorizontalDivider()
-            Text(
-                if (autoLarp == 1) "Auto-LARP: off" else "Auto-LARP: every play counts $autoLarp×",
-                style = MaterialTheme.typography.titleSmall,
-                modifier = Modifier.padding(top = 8.dp),
-            )
-            Text(
-                "Scrobbles each play up to ${Larp.MAX_TIMES}× automatically. Copies are backdated one track " +
-                    "length apart so Last.fm doesn't drop them as duplicates.",
-                style = MaterialTheme.typography.bodySmall,
-            )
-            Slider(
-                value = autoLarp.toFloat(),
-                onValueChange = { onAutoLarpChange(it.roundToInt()) },
-                valueRange = 1f..Larp.MAX_TIMES.toFloat(),
-                steps = Larp.MAX_TIMES - 2,
-            )
+            Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
+                Column(Modifier.weight(1f)) {
+                    Text("Rescrobble on skip & pause", style = MaterialTheme.typography.titleSmall)
+                    Text(
+                        "Once a song has scrobbled, pausing and resuming it, skipping back or seeking starts a " +
+                            "new play that scrobbles again at the threshold",
+                        style = MaterialTheme.typography.bodySmall,
+                    )
+                }
+                Switch(checked = rescrobbleOnRestart, onCheckedChange = onRescrobbleOnRestartChange)
+            }
         }
     }
 }
@@ -414,7 +407,7 @@ private fun AppRow(app: AppSetting, onEnabledChange: (Boolean) -> Unit) {
 }
 
 @Composable
-private fun ScrobbleRow(entry: ScrobbleEntry, onLarp: () -> Unit) {
+private fun ScrobbleRow(entry: ScrobbleEntry) {
     val track = entry.scrobble.track
     val time = remember(entry.scrobble.timestampSec) {
         DateUtils.getRelativeTimeSpanString(
@@ -428,31 +421,17 @@ private fun ScrobbleRow(entry: ScrobbleEntry, onLarp: () -> Unit) {
         ScrobbleStatus.PENDING -> "$time · waiting to send"
         ScrobbleStatus.IGNORED, ScrobbleStatus.REJECTED -> "$time · ${entry.message ?: "not scrobbled"}"
     }
-    // Only plays Last.fm took (or will take) can be copied, and it ignores anything over 14 days old.
-    val canLarp = entry.timesScrobbled < Larp.MAX_TIMES &&
-        (entry.status == ScrobbleStatus.SENT || entry.status == ScrobbleStatus.PENDING) &&
-        System.currentTimeMillis() / 1000 - entry.scrobble.timestampSec < Larp.MAX_AGE_SEC
-    Row(Modifier.padding(vertical = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-        Column(Modifier.weight(1f)) {
-            Text(track.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(track.artist, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
-            Text(
-                status,
-                style = MaterialTheme.typography.bodySmall,
-                color = when (entry.status) {
-                    ScrobbleStatus.SENT, ScrobbleStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
-                    ScrobbleStatus.IGNORED, ScrobbleStatus.REJECTED -> MaterialTheme.colorScheme.error
-                },
-            )
-        }
-        Spacer(Modifier.width(8.dp))
-        Button(
-            onClick = onLarp,
-            enabled = canLarp,
-            contentPadding = PaddingValues(horizontal = 14.dp, vertical = 4.dp),
-        ) {
-            Text(if (entry.timesScrobbled > 1) "LARP ×${entry.timesScrobbled}" else "LARP")
-        }
+    Column(Modifier.padding(vertical = 8.dp)) {
+        Text(track.title, style = MaterialTheme.typography.bodyLarge, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(track.artist, style = MaterialTheme.typography.bodyMedium, maxLines = 1, overflow = TextOverflow.Ellipsis)
+        Text(
+            status,
+            style = MaterialTheme.typography.bodySmall,
+            color = when (entry.status) {
+                ScrobbleStatus.SENT, ScrobbleStatus.PENDING -> MaterialTheme.colorScheme.onSurfaceVariant
+                ScrobbleStatus.IGNORED, ScrobbleStatus.REJECTED -> MaterialTheme.colorScheme.error
+            },
+        )
     }
 }
 

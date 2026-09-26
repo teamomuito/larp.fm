@@ -20,16 +20,15 @@ larp.fm picks up whatever's playing on your phone (Spotify, YouTube Music, Power
 any app with a media notification) and scrobbles it to [Last.fm](https://www.last.fm). No
 internet? Plays get saved and sent later.
 
-And yes, it larps. Tap LARP on a scrobble and it counts again.
+And yes, it larps. Pause and resume a song, skip back or seek, and it counts again.
 
 ## features
 
-- scrobble after anywhere from 1% to 100% of a song (Last.fm's default is 50%)
+- scrobble after anywhere from 1% to 50% of a song (Last.fm's default is 50%)
 - send the album, or just artist + track
 - clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
 - scrobble just the first artist: `Artist A feat. Artist B` becomes `Artist A`
-- LARP any recent play up to 5 times
-- auto-LARP every song if you're feeling bold
+- LARP: songs scrobble again every time you pause and resume, skip back or seek
 - choose which apps get scrobbled
 - pink, obviously
 
@@ -55,9 +54,10 @@ Updating? Uninstall the old version first, or Android won't install the new one 
 
 ## about LARP
 
-Every LARP copy gets its own timestamp, spaced one song apart, like you had it on repeat. That
-keeps Last.fm from throwing them out as duplicates. You can't LARP plays older than about two
-weeks, because Last.fm ignores anything that old.
+Once a song has scrobbled, pausing and resuming it, skipping back to the start, looping it on
+repeat-one or dragging the progress bar starts a new play. That play scrobbles again once it
+passes the threshold, with its own timestamp so Last.fm doesn't throw it out as a duplicate. Turn
+it off with **Rescrobble on skip & pause** in the settings.
 
 Last.fm isn't a fan of fake scrobbles, so larp responsibly.
 
@@ -90,7 +90,7 @@ base64 -w0 release.keystore
 
 The code is split in two:
 
-- `core/` is plain Kotlin with unit tests. It has the scrobble rules, the LARP logic, the
+- `core/` is plain Kotlin with unit tests. It has the scrobble rules, the playback tracking, the
   album title cleanup and the Last.fm client.
 - `app/` is the Android app. It uses Jetpack Compose for the UI, a notification listener that
   follows media sessions, and WorkManager to send scrobbles.

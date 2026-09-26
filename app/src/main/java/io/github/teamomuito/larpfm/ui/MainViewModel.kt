@@ -5,7 +5,6 @@ import androidx.core.app.NotificationManagerCompat
 import androidx.lifecycle.AndroidViewModel
 import androidx.lifecycle.viewModelScope
 import io.github.teamomuito.larpfm.data.Account
-import io.github.teamomuito.larpfm.data.ScrobbleEntry
 import io.github.teamomuito.larpfm.graph
 import io.github.teamomuito.larpfm.lastfm.LastFmClient
 import io.github.teamomuito.larpfm.lastfm.LastFmException
@@ -44,7 +43,7 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val sendAlbum = settings.sendAlbum
     val cleanAlbumTitles = settings.cleanAlbumTitles
     val firstArtistOnly = settings.firstArtistOnly
-    val autoLarp = settings.autoLarp
+    val rescrobbleOnRestart = settings.rescrobbleOnRestart
     val apps = settings.apps
     val nowPlaying = repository.nowPlaying
     val recent = repository.recent
@@ -152,19 +151,11 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
 
     fun setFirstArtistOnly(firstOnly: Boolean) = settings.setFirstArtistOnly(firstOnly)
 
-    fun setAutoLarp(times: Int) = settings.setAutoLarp(times)
+    fun setRescrobbleOnRestart(rescrobble: Boolean) = settings.setRescrobbleOnRestart(rescrobble)
 
     fun setAppEnabled(packageName: String, enabled: Boolean) = settings.setAppEnabled(packageName, enabled)
 
     fun sendNow() = FlushWorker.enqueue(getApplication<Application>())
-
-    /** Scrobbles a play one more time. */
-    fun larp(entry: ScrobbleEntry) {
-        val context = getApplication<Application>()
-        graph.scope.launch {
-            if (repository.larp(entry.id)) FlushWorker.enqueue(context)
-        }
-    }
 
     companion object {
         /** Where Last.fm sends the browser after the user approves the app; see the manifest. */

@@ -14,6 +14,7 @@ import android.util.Log
 import io.github.teamomuito.larpfm.core.ArtistNames
 import io.github.teamomuito.larpfm.core.Clock
 import io.github.teamomuito.larpfm.core.PlaybackTracker
+import io.github.teamomuito.larpfm.core.Position
 import io.github.teamomuito.larpfm.core.Scrobble
 import io.github.teamomuito.larpfm.core.TitleCleaner
 import io.github.teamomuito.larpfm.core.Track
@@ -82,13 +83,18 @@ class ScrobbleListenerService : NotificationListenerService() {
     /** One media session, e.g. a music app, and the progress of whatever it's playing. */
     private inner class Player(private val controller: MediaController) : MediaController.Callback() {
         private val appPackage: String = controller.packageName
-        private val tracker = PlaybackTracker(SystemClocks) { graph.settings.thresholdPercent.value }
+        private val tracker = PlaybackTracker(
+            SystemClocks,
+            thresholdPercent = { graph.settings.thresholdPercent.value },
+            rescrobble = { graph.settings.rescrobbleOnRestart.value },
+        )
         private val checkThreshold = Runnable { handle(listOfNotNull(tracker.checkThreshold())) }
 
         init {
             controller.registerCallback(this, handler)
             handle(tracker.onMetadata(controller.metadata?.toTrack()))
-            handle(tracker.onPlaybackState(controller.playbackState.isPlaying()))
+            val state = controller.playbackState
+            handle(tracker.onPlaybackState(state.isPlaying(), state.toPosition()))
         }
 
         override fun onMetadataChanged(metadata: MediaMetadata?) {
@@ -96,7 +102,7 @@ class ScrobbleListenerService : NotificationListenerService() {
         }
 
         override fun onPlaybackStateChanged(state: PlaybackState?) {
-            handle(tracker.onPlaybackState(state.isPlaying()))
+            handle(tracker.onPlaybackState(state.isPlaying(), state.toPosition()))
         }
 
         override fun onSessionDestroyed() {
@@ -133,9 +139,8 @@ class ScrobbleListenerService : NotificationListenerService() {
         private fun scrobble(scrobble: Scrobble) {
             if (!shouldScrobble()) return
             val sent = scrobble.copy(track = withTagSettings(scrobble.track))
-            val times = graph.settings.autoLarp.value
             graph.scope.launch {
-                graph.repository.enqueue(sent, appPackage, times)
+                graph.repository.enqueue(sent, appPackage)
                 FlushWorker.enqueue(applicationContext)
             }
         }
@@ -170,6 +175,12 @@ class ScrobbleListenerService : NotificationListenerService() {
 }
 
 private fun PlaybackState?.isPlaying() = this?.state == PlaybackState.STATE_PLAYING
+
+/** Where the player says it is, if it says. Its update time is on the [SystemClock.elapsedRealtime] timeline. */
+private fun PlaybackState?.toPosition(): Position? {
+    if (this == null || position < 0 || lastPositionUpdateTime <= 0) return null
+    return Position(position, lastPositionUpdateTime, playbackSpeed.takeIf { it > 0f } ?: 1f)
+}
 
 private fun MediaMetadata.toTrack(): Track? {
     fun text(key: String) = getString(key)?.trim()?.takeIf { it.isNotEmpty() }
