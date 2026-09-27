@@ -9,8 +9,6 @@ enum class ScrobbleService(
     /** The API account to use on this site, or null when the user brings their own. */
     val fixedApiKey: String?,
     val fixedApiSecret: String?,
-    /** Whether the site caps scrobbles per day (Last.fm: 2,800), which auto-LARP copies must leave room under. */
-    val hasDailyLimit: Boolean,
 ) {
     LASTFM(
         title = "Last.fm",
@@ -18,7 +16,6 @@ enum class ScrobbleService(
         authUrl = "https://www.last.fm/api/auth/",
         fixedApiKey = null,
         fixedApiSecret = null,
-        hasDailyLimit = true,
     ),
 
     /** Libre.fm runs GNU FM, which copies the Last.fm API. It doesn't register API keys, so any 32 characters will do. */
@@ -28,7 +25,6 @@ enum class ScrobbleService(
         authUrl = "https://libre.fm/api/auth/",
         fixedApiKey = "6b90300abf55fb097990291270288e61",
         fixedApiSecret = "18932ad3261c74e5437b27a34ea90aef",
-        hasDailyLimit = false,
     ),
     ;
 

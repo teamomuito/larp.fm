@@ -1,7 +1,5 @@
 package io.github.teamomuito.larpfm.core
 
-import kotlin.math.abs
-
 interface Clock {
     /** Monotonic time, used to measure how long a track has played. */
     fun elapsedMs(): Long
@@ -12,27 +10,19 @@ interface Clock {
 
 sealed interface TrackerEvent {
     data class NowPlaying(val track: Track) : TrackerEvent
-    /** [replay] is true when the song was already scrobbled and then paused and resumed, skipped back or seeked. */
-    data class ScrobbleReady(val scrobble: Scrobble, val replay: Boolean = false) : TrackerEvent
+    data class ScrobbleReady(val scrobble: Scrobble) : TrackerEvent
 }
-
-/** Where the player says it is: [ms] into the track as of [atElapsedMs] on the [Clock.elapsedMs] timeline. */
-data class Position(val ms: Long, val atElapsedMs: Long, val speed: Float = 1f)
 
 /**
  * Follows one media player's metadata and play/pause state, and decides when the current track
  * should be sent as "now playing" and when it has played long enough to be scrobbled.
  *
- * Only time spent playing counts; pauses don't. Each play is scrobbled at most once. When
- * [rescrobble] is on, a play that has been scrobbled ends when the song is paused and resumed or
- * jumps to another point (skipped back, looped, seeked), and a new play of the same song starts.
- * [thresholdPercent] and [rescrobble] are read on every check, so a changed setting applies to
- * the current track.
+ * Only time spent playing counts; pauses don't. Each track is scrobbled at most once.
+ * [thresholdPercent] is read on every check, so a changed setting applies to the current track.
  */
 class PlaybackTracker(
     private val clock: Clock,
     private val thresholdPercent: () -> Int = { ScrobbleRules.DEFAULT_PERCENT },
-    private val rescrobble: () -> Boolean = { false },
 ) {
     var track: Track? = null
         private set
@@ -43,8 +33,6 @@ class PlaybackTracker(
     private var playingSinceMs = 0L
     private var startedAtEpochMs: Long? = null
     private var scrobbled = false
-    private var replay = false
-    private var lastPosition: Position? = null
 
     fun onMetadata(newTrack: Track?): List<TrackerEvent> {
         val current = track
@@ -60,9 +48,7 @@ class PlaybackTracker(
         track = newTrack
         playedMs = 0
         scrobbled = false
-        replay = false
         startedAtEpochMs = null
-        lastPosition = null
         if (isPlaying) {
             playingSinceMs = clock.elapsedMs()
             if (newTrack != null) {
@@ -73,23 +59,13 @@ class PlaybackTracker(
         return events
     }
 
-    /** [position] is where the player says it is, or null if it doesn't say. */
-    fun onPlaybackState(playing: Boolean, position: Position? = null): List<TrackerEvent> {
-        val jumped = position != null && jumped(position)
-        lastPosition = position
-        if (playing == isPlaying) {
-            if (!playing || !jumped) return emptyList()
-            // Skipped back, looped or seeked while playing.
-            val events = listOfNotNull(checkThreshold())
-            restartIfScrobbled()
-            return events
-        }
+    fun onPlaybackState(playing: Boolean): List<TrackerEvent> {
+        if (playing == isPlaying) return emptyList()
         val now = clock.elapsedMs()
         if (playing) {
             isPlaying = true
             playingSinceMs = now
             val current = track ?: return emptyList()
-            restartIfScrobbled()
             if (startedAtEpochMs == null) startedAtEpochMs = clock.epochMs()
             return listOf(TrackerEvent.NowPlaying(current))
         }
@@ -98,26 +74,7 @@ class PlaybackTracker(
         return listOfNotNull(checkThreshold())
     }
 
-    /** Whether the player is somewhere other than where it would have got to by just playing on. */
-    private fun jumped(to: Position): Boolean {
-        val from = lastPosition ?: return false
-        val expectedMs = from.ms + if (isPlaying) ((to.atElapsedMs - from.atElapsedMs) * from.speed).toLong() else 0
-        return abs(to.ms - expectedMs) > JUMP_TOLERANCE_MS
-    }
-
-    /** With [rescrobble] on, ends a play that has been scrobbled and starts a new play of the same song. */
-    private fun restartIfScrobbled() {
-        val previousStartMs = startedAtEpochMs
-        if (!scrobbled || previousStartMs == null || !rescrobble()) return
-        scrobbled = false
-        replay = true
-        playedMs = 0
-        playingSinceMs = clock.elapsedMs()
-        // Last.fm drops a scrobble with the same track and timestamp as one it already has.
-        startedAtEpochMs = maxOf(clock.epochMs(), (previousStartMs / 1000 + 1) * 1000)
-    }
-
-    /** Scrobbles the current play if it has played long enough and hasn't been scrobbled yet. */
+    /** Scrobbles the current track if it has played long enough and hasn't been scrobbled yet. */
     fun checkThreshold(): TrackerEvent.ScrobbleReady? {
         val current = track ?: return null
         val startedAt = startedAtEpochMs ?: return null
@@ -125,7 +82,7 @@ class PlaybackTracker(
         val threshold = ScrobbleRules.thresholdMs(current.durationMs, thresholdPercent()) ?: return null
         if (totalPlayedMs() < threshold) return null
         scrobbled = true
-        return TrackerEvent.ScrobbleReady(Scrobble(current, startedAt / 1000), replay)
+        return TrackerEvent.ScrobbleReady(Scrobble(current, startedAt / 1000))
     }
 
     /** How much longer the current track must play to qualify, or null if there's nothing to wait for. */
@@ -147,9 +104,4 @@ class PlaybackTracker(
 
     fun totalPlayedMs(): Long =
         playedMs + if (isPlaying && track != null) clock.elapsedMs() - playingSinceMs else 0
-
-    private companion object {
-        /** Players' reported positions drift a little; anything further off is a skip or seek. */
-        const val JUMP_TOLERANCE_MS = 2_000L
-    }
 }

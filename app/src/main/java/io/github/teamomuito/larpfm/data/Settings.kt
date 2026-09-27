@@ -3,7 +3,6 @@ package io.github.teamomuito.larpfm.data
 import android.content.Context
 import androidx.core.content.edit
 import io.github.teamomuito.larpfm.BuildConfig
-import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.ScrobbleRules
 import io.github.teamomuito.larpfm.lastfm.ScrobbleService
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -52,16 +51,6 @@ class Settings(context: Context) {
 
     /** Scrobble "Artist A, Artist B" or "Artist A feat. Artist B" as just "Artist A". */
     val firstArtistOnly: StateFlow<Boolean> = _firstArtistOnly.asStateFlow()
-
-    private val _rescrobbleOnRestart = MutableStateFlow(prefs.getBoolean(KEY_RESCROBBLE_ON_RESTART, true))
-
-    /** Scrobble a song again when it's paused and resumed, skipped back or seeked after it scrobbled. */
-    val rescrobbleOnRestart: StateFlow<Boolean> = _rescrobbleOnRestart.asStateFlow()
-
-    private val _autoLarp = MutableStateFlow(prefs.getInt(KEY_AUTO_LARP, 1).coerceIn(1, Larp.MAX_TIMES))
-
-    /** How many times each play counts: once now, the rest queued an hour apart. 1 means off. */
-    val autoLarp: StateFlow<Int> = _autoLarp.asStateFlow()
 
     private val _apps = MutableStateFlow(loadApps())
 
@@ -139,17 +128,6 @@ class Settings(context: Context) {
         _firstArtistOnly.value = firstOnly
     }
 
-    fun setRescrobbleOnRestart(rescrobble: Boolean) {
-        prefs.edit { putBoolean(KEY_RESCROBBLE_ON_RESTART, rescrobble) }
-        _rescrobbleOnRestart.value = rescrobble
-    }
-
-    fun setAutoLarp(times: Int) {
-        val value = times.coerceIn(1, Larp.MAX_TIMES)
-        prefs.edit { putInt(KEY_AUTO_LARP, value) }
-        _autoLarp.value = value
-    }
-
     fun isAppEnabled(packageName: String): Boolean =
         _apps.value.firstOrNull { it.packageName == packageName }?.enabled ?: (packageName !in DEFAULT_DISABLED)
 
@@ -203,8 +181,6 @@ class Settings(context: Context) {
         const val KEY_SEND_ALBUM = "send_album"
         const val KEY_CLEAN_ALBUM_TITLES = "clean_album_titles"
         const val KEY_FIRST_ARTIST_ONLY = "first_artist_only"
-        const val KEY_RESCROBBLE_ON_RESTART = "rescrobble_on_restart"
-        const val KEY_AUTO_LARP = "auto_larp"
         const val KEY_SEEN_APPS = "seen_apps"
         const val KEY_DISABLED_APPS = "disabled_apps"
 

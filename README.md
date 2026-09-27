@@ -18,10 +18,7 @@
 
 larp.fm picks up whatever's playing on your phone (Spotify, YouTube Music, Poweramp, pretty much
 any app with a media notification) and scrobbles it to [Last.fm](https://www.last.fm) or
-[Libre.fm](https://libre.fm). No
-internet? Plays get saved and sent later.
-
-And yes, it larps. Pause and resume a song, skip back or seek, and it counts again.
+[Libre.fm](https://libre.fm). No internet? Plays get saved and sent later.
 
 ## features
 
@@ -30,10 +27,9 @@ And yes, it larps. Pause and resume a song, skip back or seek, and it counts aga
 - send the album, or just artist + track
 - clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
 - scrobble just the first artist: `Artist A feat. Artist B` becomes `Artist A`
-- LARP: songs scrobble again every time you pause and resume, skip back or seek
-- auto-LARP: every song counts up to 10×, one extra scrobble an hour
 - choose which apps get scrobbled
-- pink, obviously
+- check what Last.fm or Libre.fm actually recorded, right from the app
+- pink liquid glass, obviously
 
 ## install
 
@@ -54,23 +50,6 @@ And yes, it larps. Pause and resume a song, skip back or seek, and it counts aga
 > that doesn't come from the Play Store.
 
 Updating? Uninstall the old version first, or Android won't install the new one over it.
-
-## about LARP
-
-Once a song has scrobbled, pausing and resuming it, skipping back to the start, looping it on
-repeat-one or dragging the progress bar starts a new play. That play scrobbles again once it
-passes the threshold, with its own timestamp so Last.fm doesn't throw it out as a duplicate. Turn
-it off with **Rescrobble on skip & pause** in the settings.
-
-**Auto-LARP** makes every song count up to 10 times. The first scrobble goes out right away and
-the rest wait in the app, one an hour, each timestamped an hour after the last. Play Iron Maiden
-at 12:00 with auto-LARP at 3× and it's scrobbled at 12:00, 13:00 and 14:00. Copies only go out
-once the original has been accepted, real plays are always sent first, and on Last.fm copies hold
-off once 2,300 scrobbles have gone out in a day so your real listening stays under its 2,800
-limit. Libre.fm has no daily limit, so there copies go out as soon as they're due.
-Replays from skip & pause count once and don't get copies.
-
-Last.fm isn't a fan of fake scrobbles, so larp responsibly.
 
 <details>
 <summary><b>building it yourself</b></summary>

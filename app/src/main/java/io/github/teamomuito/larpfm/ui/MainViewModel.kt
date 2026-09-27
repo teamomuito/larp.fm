@@ -44,8 +44,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     val sendAlbum = settings.sendAlbum
     val cleanAlbumTitles = settings.cleanAlbumTitles
     val firstArtistOnly = settings.firstArtistOnly
-    val rescrobbleOnRestart = settings.rescrobbleOnRestart
-    val autoLarp = settings.autoLarp
     val apps = settings.apps
     val nowPlaying = repository.nowPlaying
     val recent = repository.recent
@@ -171,10 +169,6 @@ class MainViewModel(application: Application) : AndroidViewModel(application) {
     fun setCleanAlbumTitles(clean: Boolean) = settings.setCleanAlbumTitles(clean)
 
     fun setFirstArtistOnly(firstOnly: Boolean) = settings.setFirstArtistOnly(firstOnly)
-
-    fun setRescrobbleOnRestart(rescrobble: Boolean) = settings.setRescrobbleOnRestart(rescrobble)
-
-    fun setAutoLarp(times: Int) = settings.setAutoLarp(times)
 
     fun setAppEnabled(packageName: String, enabled: Boolean) = settings.setAppEnabled(packageName, enabled)
 

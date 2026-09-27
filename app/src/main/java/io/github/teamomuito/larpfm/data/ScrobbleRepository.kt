@@ -1,6 +1,5 @@
 package io.github.teamomuito.larpfm.data
 
-import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.Scrobble
 import io.github.teamomuito.larpfm.core.Track
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,28 +38,12 @@ class ScrobbleRepository(private val db: ScrobbleDb) {
         _apiLog.update { (listOf(entry) + it).take(LOG_SIZE) }
     }
 
-    /** Queues [scrobble], counted [times] times in total: now, then once an hour after (auto-LARP). */
-    fun enqueue(scrobble: Scrobble, packageName: String, times: Int = 1) {
-        db.insert(scrobble, packageName, Larp.copies(scrobble, times))
+    fun enqueue(scrobble: Scrobble, packageName: String) {
+        db.insert(scrobble, packageName)
         refresh()
     }
 
-    /** What can be sent now. On a site with a [dailyLimit], copies wait while [Larp.DAILY_BUDGET] is used up. */
-    fun pending(limit: Int, dailyLimit: Boolean): List<ScrobbleEntry> {
-        val now = nowSec()
-        val copiesAllowed = !dailyLimit || db.countSentSince(now - DAY_SEC) < Larp.DAILY_BUDGET
-        return db.pending(limit, now, copiesAllowed)
-    }
-
-    /**
-     * How long until waiting auto-LARP copies should be looked at again, or null if there are
-     * none. Copies that are already due but held back (daily budget) are retried in an hour.
-     */
-    fun msUntilNextCopy(): Long? {
-        val next = db.nextCopySec() ?: return null
-        val wait = next - nowSec()
-        return if (wait > 0) wait * 1000 else Larp.INTERVAL_SEC * 1000
-    }
+    fun pending(limit: Int): List<ScrobbleEntry> = db.pending(limit)
 
     fun setStatus(id: Long, status: ScrobbleStatus, message: String? = null) = db.setStatus(id, status, message)
 
@@ -77,19 +60,15 @@ class ScrobbleRepository(private val db: ScrobbleDb) {
     }
 
     fun refresh() {
-        db.cancelOrphanedCopies()
         db.prune(keep = HISTORY_SIZE)
         _recent.value = db.recent(RECENT_SIZE)
-        _pendingCount.value = db.countPending(nowSec())
+        _pendingCount.value = db.countPending()
     }
-
-    private fun nowSec() = System.currentTimeMillis() / 1000
 
     private companion object {
         const val HISTORY_SIZE = 500
         const val RECENT_SIZE = 50
         const val LOG_SIZE = 5
         const val LOG_BODY_LENGTH = 600
-        const val DAY_SEC = 24 * 60 * 60L
     }
 }

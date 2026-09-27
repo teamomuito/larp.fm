@@ -66,7 +66,7 @@ class ScrobbleSubmitter(
         val client = client(account)
         try {
             while (true) {
-                val batch = repository.pending(LastFmClient.MAX_BATCH_SIZE, dailyLimit = account.service.hasDailyLimit)
+                val batch = repository.pending(LastFmClient.MAX_BATCH_SIZE)
                 if (batch.isEmpty()) break
                 val outcome = submit(client, account.sessionKey, batch)
                 if (outcome != null) return outcome
