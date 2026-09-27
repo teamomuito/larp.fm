@@ -53,7 +53,10 @@ jobs:
   release:
     # Every push to the default branch becomes a release, so the newest APK is always at
     # https://github.com/teamomuito/larp.fm/releases/latest/download/larpfm.apk
-    if: github.event_name == 'push' && github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    # "Run workflow" on the default branch releases too, e.g. to pick up changed secrets.
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch') &&
+      github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
     needs: build
     runs-on: ubuntu-latest
     permissions:
@@ -76,6 +79,7 @@ jobs:
           previous=$(gh release view --repo "$GITHUB_REPOSITORY" --json tagName --jq .tagName 2>/dev/null || true)
           if [ -n "$previous" ]; then range="$previous..$GITHUB_SHA"; else range="-1 $GITHUB_SHA"; fi
           git log --no-merges --format='- %s' $range > notes.md
+          [ -s notes.md ] || echo "- Rebuilt from the same code as $previous" > notes.md
           gh release create "build-$GITHUB_RUN_NUMBER" larpfm.apk \
             --repo "$GITHUB_REPOSITORY" \
             --target "$GITHUB_SHA" \
