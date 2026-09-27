@@ -28,6 +28,10 @@ class ScrobbleSubmitter(
 
     private val transport = UrlConnectionTransport(userAgent)
 
+    /** After the site says it's getting too many requests, now playing updates pause until then. */
+    @Volatile
+    private var quietUntilMs = 0L
+
     fun client(service: ScrobbleService, apiKey: String, apiSecret: String) =
         LastFmClient(apiKey, apiSecret, transport, service) { method, response ->
             repository.logResponse(method, response.code, response.body)
@@ -37,12 +41,14 @@ class ScrobbleSubmitter(
 
     fun sendNowPlaying(track: Track) {
         val account = settings.account.value ?: return
+        if (System.currentTimeMillis() < quietUntilMs) return
         try {
             client(account).updateNowPlaying(account.sessionKey, track)
         } catch (e: IOException) {
             Log.i(TAG, "Couldn't send now playing", e)
         } catch (e: LastFmException) {
             Log.i(TAG, "Couldn't send now playing", e)
+            noteRateLimit(e)
             repository.setLastError("Now playing: ${e.message}")
         }
     }
@@ -80,6 +86,7 @@ class ScrobbleSubmitter(
             repository.setLastError("Network error: ${e.message}")
             return Outcome.RETRY
         } catch (e: LastFmException) {
+            noteRateLimit(e)
             repository.setLastError(e.message)
             return when {
                 e.isRetryable -> Outcome.RETRY
@@ -108,7 +115,12 @@ class ScrobbleSubmitter(
         return null
     }
 
+    private fun noteRateLimit(e: LastFmException) {
+        if (e.code == LastFmException.RATE_LIMITED) quietUntilMs = System.currentTimeMillis() + QUIET_MS
+    }
+
     private companion object {
         const val TAG = "ScrobbleSubmitter"
+        const val QUIET_MS = 5 * 60 * 1000L
     }
 }

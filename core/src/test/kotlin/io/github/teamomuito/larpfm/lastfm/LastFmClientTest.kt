@@ -122,6 +122,29 @@ class LastFmClientTest {
     }
 
     @Test
+    fun `libre fm errors are read`() {
+        try {
+            client(body = """{"error":{"#text":"Invalid resource specified","code":"7"}}""").getRecentTracks("me", 5)
+            fail("expected an exception")
+        } catch (e: LastFmException) {
+            assertEquals(7, e.code)
+            assertEquals("Invalid resource specified", e.message)
+        }
+    }
+
+    @Test
+    fun `rate limiting is retried later`() {
+        try {
+            client(code = 429, body = "error code: 1015").scrobble("sk", listOf(Scrobble(Track("A", "B"), 1)))
+            fail("expected an exception")
+        } catch (e: LastFmException) {
+            assertEquals(LastFmException.RATE_LIMITED, e.code)
+            assertTrue(e.isRetryable)
+            assertTrue(e.message!!.contains("429"))
+        }
+    }
+
+    @Test
     fun `browser sign-in token is swapped for a signed session`() {
         val session = client(body = """{"session":{"name":"RJ","key":"abc123","subscriber":0}}""").getSession("tok")
 

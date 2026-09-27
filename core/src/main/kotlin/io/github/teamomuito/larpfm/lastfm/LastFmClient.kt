@@ -143,13 +143,20 @@ class LastFmClient(
         val method = params["method"].orEmpty()
         val response = transport.post(service.apiUrl, form)
         if (!method.startsWith("auth.")) onResponse(method, response)
+        if (response.code == HTTP_TOO_MANY_REQUESTS) {
+            throw LastFmException(LastFmException.RATE_LIMITED, "Too many requests right now, will try again later (HTTP 429)")
+        }
         val json = try {
             JSONObject(response.body)
         } catch (e: JSONException) {
             throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Unexpected response from ${service.title} (HTTP ${response.code})")
         }
         if (json.has("error")) {
-            throw LastFmException(json.optInt("error"), json.optString("message").ifEmpty { "${service.title} error" })
+            // Last.fm: {"error":4,"message":"…"}. Libre.fm: {"error":{"code":"4","#text":"…"}}.
+            val error = json.optJSONObject("error")
+            val code = error?.optString("code")?.toIntOrNull() ?: json.optInt("error")
+            val message = error?.optString("#text") ?: json.optString("message")
+            throw LastFmException(code, message.ifEmpty { "${service.title} error $code" })
         }
         if (response.code !in 200..299) {
             throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Unexpected response from ${service.title} (HTTP ${response.code})")
@@ -159,6 +166,7 @@ class LastFmClient(
 
     companion object {
         const val MAX_BATCH_SIZE = 50
+        private const val HTTP_TOO_MANY_REQUESTS = 429
 
         // The Charset overload of URLEncoder.encode needs Android API 33.
         private fun encode(value: String): String = URLEncoder.encode(value, "UTF-8")
