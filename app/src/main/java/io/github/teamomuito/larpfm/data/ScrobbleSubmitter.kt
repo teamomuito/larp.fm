@@ -5,10 +5,11 @@ import io.github.teamomuito.larpfm.core.Track
 import io.github.teamomuito.larpfm.lastfm.LastFmClient
 import io.github.teamomuito.larpfm.lastfm.LastFmException
 import io.github.teamomuito.larpfm.lastfm.RecentTracks
+import io.github.teamomuito.larpfm.lastfm.ScrobbleService
 import io.github.teamomuito.larpfm.lastfm.UrlConnectionTransport
 import java.io.IOException
 
-/** Talks to Last.fm on behalf of the signed-in account. Every method blocks; call off the main thread. */
+/** Talks to Last.fm or Libre.fm on behalf of the signed-in account. Every method blocks; call off the main thread. */
 class ScrobbleSubmitter(
     private val settings: Settings,
     private val repository: ScrobbleRepository,
@@ -18,7 +19,7 @@ class ScrobbleSubmitter(
         /** Nothing left to send. */
         DONE,
 
-        /** Try again later: offline, Last.fm is down, or the daily limit was hit. */
+        /** Try again later: offline, the site is down, or the daily limit was hit. */
         RETRY,
 
         /** Can't send until the user signs in again. */
@@ -27,34 +28,42 @@ class ScrobbleSubmitter(
 
     private val transport = UrlConnectionTransport(userAgent)
 
-    fun client(apiKey: String, apiSecret: String) =
-        LastFmClient(apiKey, apiSecret, transport) { method, response ->
+    /** After the site says it's getting too many requests, now playing updates pause until then. */
+    @Volatile
+    private var quietUntilMs = 0L
+
+    fun client(service: ScrobbleService, apiKey: String, apiSecret: String) =
+        LastFmClient(apiKey, apiSecret, transport, service) { method, response ->
             repository.logResponse(method, response.code, response.body)
         }
 
+    private fun client(account: Account) = client(account.service, account.apiKey, account.apiSecret)
+
     fun sendNowPlaying(track: Track) {
         val account = settings.account.value ?: return
+        if (System.currentTimeMillis() < quietUntilMs) return
         try {
-            client(account.apiKey, account.apiSecret).updateNowPlaying(account.sessionKey, track)
+            client(account).updateNowPlaying(account.sessionKey, track)
         } catch (e: IOException) {
             Log.i(TAG, "Couldn't send now playing", e)
         } catch (e: LastFmException) {
             Log.i(TAG, "Couldn't send now playing", e)
+            noteRateLimit(e)
             repository.setLastError("Now playing: ${e.message}")
         }
     }
 
-    /** Asks Last.fm what it has actually recorded for the signed-in account. */
+    /** Asks the site what it has actually recorded for the signed-in account. */
     @Throws(IOException::class, LastFmException::class)
     fun checkLastFm(): RecentTracks? {
         val account = settings.account.value ?: return null
-        return client(account.apiKey, account.apiSecret).getRecentTracks(account.username, limit = 5)
+        return client(account).getRecentTracks(account.username, limit = 5)
     }
 
     /** Sends every queued scrobble, in batches. */
     fun flush(): Outcome {
         val account = settings.account.value ?: return Outcome.STOP
-        val client = client(account.apiKey, account.apiSecret)
+        val client = client(account)
         try {
             while (true) {
                 val batch = repository.pending(LastFmClient.MAX_BATCH_SIZE)
@@ -77,6 +86,7 @@ class ScrobbleSubmitter(
             repository.setLastError("Network error: ${e.message}")
             return Outcome.RETRY
         } catch (e: LastFmException) {
+            noteRateLimit(e)
             repository.setLastError(e.message)
             return when {
                 e.isRetryable -> Outcome.RETRY
@@ -105,7 +115,12 @@ class ScrobbleSubmitter(
         return null
     }
 
+    private fun noteRateLimit(e: LastFmException) {
+        if (e.code == LastFmException.RATE_LIMITED) quietUntilMs = System.currentTimeMillis() + QUIET_MS
+    }
+
     private companion object {
         const val TAG = "ScrobbleSubmitter"
+        const val QUIET_MS = 5 * 60 * 1000L
     }
 }

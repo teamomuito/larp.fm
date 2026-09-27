@@ -21,12 +21,14 @@ class MainActivity : ComponentActivity() {
         enableEdgeToEdge()
         setContent {
             LarpTheme {
-                val account by viewModel.account.collectAsStateWithLifecycle()
-                val signedIn = account
-                if (signedIn == null) {
-                    LoginScreen(viewModel)
-                } else {
-                    HomeScreen(viewModel, signedIn)
+                GlassBackground {
+                    val account by viewModel.account.collectAsStateWithLifecycle()
+                    val signedIn = account
+                    if (signedIn == null) {
+                        LoginScreen(viewModel)
+                    } else {
+                        HomeScreen(viewModel, signedIn)
+                    }
                 }
             }
         }

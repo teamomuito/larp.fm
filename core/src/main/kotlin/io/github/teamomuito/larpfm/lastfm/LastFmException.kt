@@ -21,7 +21,10 @@ class LastFmException(val code: Int, message: String) : Exception(message) {
         const val TOKEN_EXPIRED = 15
         const val SUSPENDED_API_KEY = 26
 
-        private val RETRYABLE_CODES = setOf(UNEXPECTED_RESPONSE, 8, 11, 16, 29)
+        /** Last.fm's own rate limit error; also used for HTTP 429, e.g. from Cloudflare in front of Libre.fm. */
+        const val RATE_LIMITED = 29
+
+        private val RETRYABLE_CODES = setOf(UNEXPECTED_RESPONSE, 8, 11, 16, RATE_LIMITED)
         private val AUTH_CODES = setOf(
             AUTHENTICATION_FAILED,
             INVALID_SESSION_KEY,

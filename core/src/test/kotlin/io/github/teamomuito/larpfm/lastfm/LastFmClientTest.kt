@@ -16,7 +16,7 @@ class LastFmClientTest {
         apiKey = "key",
         apiSecret = "secret",
         transport = { url, form ->
-            assertEquals(LastFmClient.API_URL, url)
+            assertEquals(ScrobbleService.LASTFM.apiUrl, url)
             requests += form
             HttpResponse(code, body)
         },
@@ -94,6 +94,54 @@ class LastFmClientTest {
         val url = client(body = "{}").webAuthUrl("larpfm://auth")
 
         assertEquals("https://www.last.fm/api/auth/?api_key=key&cb=larpfm%3A%2F%2Fauth", url)
+    }
+
+    @Test
+    fun `libre fm uses its own server for the api and sign-in`() {
+        val urls = mutableListOf<String>()
+        val libre = LastFmClient("key", "secret", { url, form ->
+            urls += url
+            requests += form
+            HttpResponse(200, """{"session":{"name":"me","key":"sk"}}""")
+        }, ScrobbleService.LIBREFM)
+
+        assertEquals("https://libre.fm/api/auth/?api_key=key&cb=larpfm%3A%2F%2Fauth", libre.webAuthUrl("larpfm://auth"))
+        assertEquals(Session("me", "sk"), libre.getSession("token"))
+        assertEquals(listOf("https://libre.fm/2.0/"), urls)
+    }
+
+    @Test
+    fun `errors name the site`() {
+        val libre = LastFmClient("key", "secret", { _, _ -> HttpResponse(502, "Bad gateway") }, ScrobbleService.LIBREFM)
+        try {
+            libre.updateNowPlaying("sk", Track("A", "B"))
+            fail("expected an exception")
+        } catch (e: LastFmException) {
+            assertEquals("Unexpected response from Libre.fm (HTTP 502)", e.message)
+        }
+    }
+
+    @Test
+    fun `libre fm errors are read`() {
+        try {
+            client(body = """{"error":{"#text":"Invalid resource specified","code":"7"}}""").getRecentTracks("me", 5)
+            fail("expected an exception")
+        } catch (e: LastFmException) {
+            assertEquals(7, e.code)
+            assertEquals("Invalid resource specified", e.message)
+        }
+    }
+
+    @Test
+    fun `rate limiting is retried later`() {
+        try {
+            client(code = 429, body = "error code: 1015").scrobble("sk", listOf(Scrobble(Track("A", "B"), 1)))
+            fail("expected an exception")
+        } catch (e: LastFmException) {
+            assertEquals(LastFmException.RATE_LIMITED, e.code)
+            assertTrue(e.isRetryable)
+            assertTrue(e.message!!.contains("429"))
+        }
     }
 
     @Test

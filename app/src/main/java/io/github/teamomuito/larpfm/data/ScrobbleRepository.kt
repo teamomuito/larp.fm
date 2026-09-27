@@ -1,6 +1,5 @@
 package io.github.teamomuito.larpfm.data
 
-import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.Scrobble
 import io.github.teamomuito.larpfm.core.Track
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -39,18 +38,9 @@ class ScrobbleRepository(private val db: ScrobbleDb) {
         _apiLog.update { (listOf(entry) + it).take(LOG_SIZE) }
     }
 
-    /** Queues [scrobble], counted [times] times in total (auto-LARP). */
-    fun enqueue(scrobble: Scrobble, packageName: String, times: Int = 1) {
-        val id = db.insert(scrobble, packageName)
-        if (times > 1) db.addLarpCopies(id, times - 1)
+    fun enqueue(scrobble: Scrobble, packageName: String) {
+        db.insert(scrobble, packageName)
         refresh()
-    }
-
-    /** Queues one more copy of a play. Returns false once it already counts [Larp.MAX_TIMES] times. */
-    fun larp(id: Long): Boolean {
-        val added = db.addLarpCopies(id, 1)
-        refresh()
-        return added > 0
     }
 
     fun pending(limit: Int): List<ScrobbleEntry> = db.pending(limit)

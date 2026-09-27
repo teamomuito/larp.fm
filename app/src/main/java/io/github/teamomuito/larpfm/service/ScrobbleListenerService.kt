@@ -133,9 +133,8 @@ class ScrobbleListenerService : NotificationListenerService() {
         private fun scrobble(scrobble: Scrobble) {
             if (!shouldScrobble()) return
             val sent = scrobble.copy(track = withTagSettings(scrobble.track))
-            val times = graph.settings.autoLarp.value
             graph.scope.launch {
-                graph.repository.enqueue(sent, appPackage, times)
+                graph.repository.enqueue(sent, appPackage)
                 FlushWorker.enqueue(applicationContext)
             }
         }
