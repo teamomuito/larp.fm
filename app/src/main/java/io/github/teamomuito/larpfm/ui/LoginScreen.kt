@@ -3,6 +3,7 @@ package io.github.teamomuito.larpfm.ui
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.imePadding
@@ -33,6 +34,7 @@ import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.teamomuito.larpfm.R
+import io.github.teamomuito.larpfm.lastfm.ScrobbleService
 
 private const val API_ACCOUNT_URL = "https://www.last.fm/api/account/create"
 
@@ -45,9 +47,13 @@ fun LoginScreen(viewModel: MainViewModel) {
     var apiSecret by rememberSaveable { mutableStateOf(viewModel.savedApiSecret) }
     var showApiFields by rememberSaveable { mutableStateOf(apiKey.isBlank() || apiSecret.isBlank()) }
     var usePassword by rememberSaveable { mutableStateOf(false) }
+    var service by rememberSaveable { mutableStateOf(viewModel.signInService) }
+    val site = service.title
     val uriHandler = LocalUriHandler.current
     val loading = state == LoginState.Loading
-    val hasApiKey = apiKey.isNotBlank() && apiSecret.isNotBlank()
+    // Libre.fm doesn't need an API key of your own.
+    val needsApiKey = service.fixedApiKey == null
+    val hasApiKey = !needsApiKey || (apiKey.isNotBlank() && apiSecret.isNotBlank())
     val canSignInWithPassword = !loading && hasApiKey && username.isNotBlank() && password.isNotEmpty()
 
     Scaffold { padding ->
@@ -67,22 +73,31 @@ fun LoginScreen(viewModel: MainViewModel) {
             )
             Text("larp.fm", style = MaterialTheme.typography.headlineMedium)
             Text(
-                "Sign in to Last.fm to scrobble what you play in any music app.",
+                "Sign in to Last.fm or Libre.fm to scrobble what you play in any music app.",
                 style = MaterialTheme.typography.bodyMedium,
             )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                for (option in ScrobbleService.entries) {
+                    if (option == service) {
+                        Button(onClick = {}) { Text(option.title) }
+                    } else {
+                        OutlinedButton(onClick = { service = option }, enabled = !loading) { Text(option.title) }
+                    }
+                }
+            }
             Button(
-                onClick = { uriHandler.openUri(viewModel.webSignInUrl(apiKey.trim(), apiSecret.trim())) },
+                onClick = { uriHandler.openUri(viewModel.webSignInUrl(service, apiKey.trim(), apiSecret.trim())) },
                 enabled = !loading && hasApiKey,
                 modifier = Modifier.fillMaxWidth(),
             ) {
                 if (loading && !usePassword) {
                     CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
                 } else {
-                    Text("Sign in with Last.fm")
+                    Text("Sign in with $site")
                 }
             }
             Text(
-                "Opens Last.fm in your browser. Tap Allow and you'll land back here, signed in.",
+                "Opens $site in your browser. Tap Allow and you'll land back here, signed in.",
                 style = MaterialTheme.typography.bodySmall,
             )
 
@@ -109,7 +124,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                     modifier = Modifier.fillMaxWidth(),
                 )
                 OutlinedButton(
-                    onClick = { viewModel.signIn(username.trim(), password, apiKey.trim(), apiSecret.trim()) },
+                    onClick = { viewModel.signIn(service, username.trim(), password, apiKey.trim(), apiSecret.trim()) },
                     enabled = canSignInWithPassword,
                     modifier = Modifier.fillMaxWidth(),
                 ) {
@@ -120,7 +135,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                     }
                 }
                 Text(
-                    "Your password goes straight to Last.fm and isn't stored.",
+                    "Your password goes straight to $site and isn't stored.",
                     style = MaterialTheme.typography.bodySmall,
                 )
             } else {
@@ -129,7 +144,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                 }
             }
 
-            if (showApiFields) {
+            if (needsApiKey && showApiFields) {
                 Text("Last.fm API account", style = MaterialTheme.typography.titleSmall)
                 Text(
                     "Scrobbling needs an API key. Creating one is free and takes a minute; " +
@@ -153,7 +168,7 @@ fun LoginScreen(viewModel: MainViewModel) {
                     singleLine = true,
                     modifier = Modifier.fillMaxWidth(),
                 )
-            } else {
+            } else if (needsApiKey) {
                 TextButton(onClick = { showApiFields = true }) {
                     Text("Use a different API key")
                 }

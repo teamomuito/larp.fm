@@ -54,22 +54,26 @@ data class RecentTracks(
     val tracks: List<RecentTrack>,
 )
 
-/** Blocking client for the parts of the Last.fm API a scrobbler needs. Call it off the main thread. */
+/**
+ * Blocking client for the parts of the Last.fm API a scrobbler needs, on Last.fm or a site that
+ * copies its API ([service]). Call it off the main thread.
+ */
 class LastFmClient(
     private val apiKey: String,
     private val apiSecret: String,
     private val transport: HttpTransport,
+    private val service: ScrobbleService = ScrobbleService.LASTFM,
     /** Sees every raw response, for troubleshooting. Not called for sign-in, whose responses hold the session key. */
     private val onResponse: (method: String, response: HttpResponse) -> Unit = { _, _ -> },
 ) {
     /**
-     * The Last.fm page where the user approves this app. Afterwards Last.fm sends the browser to
+     * The page where the user approves this app. Afterwards the site sends the browser to
      * [callback] with a `token` parameter, to pass to [getSession].
      */
     fun webAuthUrl(callback: String): String =
-        "https://www.last.fm/api/auth/?api_key=${encode(apiKey)}&cb=${encode(callback)}"
+        "${service.authUrl}?api_key=${encode(apiKey)}&cb=${encode(callback)}"
 
-    /** Finishes signing in through the browser, with the token Last.fm sent to the callback. */
+    /** Finishes signing in through the browser, with the token the site sent to the callback. */
     @Throws(IOException::class, LastFmException::class)
     fun getSession(token: String): Session =
         parseSession(call(mapOf("method" to "auth.getSession", "token" to token)), fallbackName = "")
@@ -89,9 +93,9 @@ class LastFmClient(
 
     private fun parseSession(response: JSONObject, fallbackName: String): Session {
         val session = response.optJSONObject("session")
-            ?: throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Last.fm returned no session")
+            ?: throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "${service.title} returned no session")
         val key = session.optString("key")
-        if (key.isEmpty()) throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Last.fm returned no session key")
+        if (key.isEmpty()) throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "${service.title} returned no session key")
         return Session(session.optString("name").ifEmpty { fallbackName }, key)
     }
 
@@ -137,24 +141,23 @@ class LastFmClient(
         val form = (if (signed) withKey + ("api_sig" to LastFmSignature.sign(withKey, apiSecret)) else withKey) +
             ("format" to "json")
         val method = params["method"].orEmpty()
-        val response = transport.post(API_URL, form)
+        val response = transport.post(service.apiUrl, form)
         if (!method.startsWith("auth.")) onResponse(method, response)
         val json = try {
             JSONObject(response.body)
         } catch (e: JSONException) {
-            throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Unexpected response from Last.fm (HTTP ${response.code})")
+            throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Unexpected response from ${service.title} (HTTP ${response.code})")
         }
         if (json.has("error")) {
-            throw LastFmException(json.optInt("error"), json.optString("message").ifEmpty { "Last.fm error" })
+            throw LastFmException(json.optInt("error"), json.optString("message").ifEmpty { "${service.title} error" })
         }
         if (response.code !in 200..299) {
-            throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Unexpected response from Last.fm (HTTP ${response.code})")
+            throw LastFmException(LastFmException.UNEXPECTED_RESPONSE, "Unexpected response from ${service.title} (HTTP ${response.code})")
         }
         return json
     }
 
     companion object {
-        const val API_URL = "https://ws.audioscrobbler.com/2.0/"
         const val MAX_BATCH_SIZE = 50
 
         // The Charset overload of URLEncoder.encode needs Android API 33.

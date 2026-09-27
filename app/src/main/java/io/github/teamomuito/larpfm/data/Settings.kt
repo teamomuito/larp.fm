@@ -5,6 +5,7 @@ import androidx.core.content.edit
 import io.github.teamomuito.larpfm.BuildConfig
 import io.github.teamomuito.larpfm.core.Larp
 import io.github.teamomuito.larpfm.core.ScrobbleRules
+import io.github.teamomuito.larpfm.lastfm.ScrobbleService
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -15,6 +16,7 @@ data class Account(
     val sessionKey: String,
     val apiKey: String,
     val apiSecret: String,
+    val service: ScrobbleService = ScrobbleService.LASTFM,
 )
 
 data class AppSetting(val packageName: String, val enabled: Boolean)
@@ -70,14 +72,29 @@ class Settings(context: Context) {
     val apiKey: String get() = prefs.getString(KEY_API_KEY, null) ?: BuildConfig.LASTFM_API_KEY
     val apiSecret: String get() = prefs.getString(KEY_API_SECRET, null) ?: BuildConfig.LASTFM_API_SECRET
 
+    /** The site signed in to, or the one picked for a sign-in that's under way. */
+    val signInService: ScrobbleService get() = ScrobbleService.of(prefs.getString(KEY_SERVICE, null))
+
+    fun apiKeyFor(service: ScrobbleService): String = service.fixedApiKey ?: apiKey
+    fun apiSecretFor(service: ScrobbleService): String = service.fixedApiSecret ?: apiSecret
+
     fun signIn(account: Account) {
         prefs.edit {
             putString(KEY_USERNAME, account.username)
             putString(KEY_SESSION_KEY, account.sessionKey)
-            putString(KEY_API_KEY, account.apiKey)
-            putString(KEY_API_SECRET, account.apiSecret)
+            putString(KEY_SERVICE, account.service.name)
+            // A site's fixed API account shouldn't replace the user's own Last.fm one.
+            if (account.service.fixedApiKey == null) {
+                putString(KEY_API_KEY, account.apiKey)
+                putString(KEY_API_SECRET, account.apiSecret)
+            }
         }
         _account.value = account
+    }
+
+    /** Remembers which site a browser sign-in was started with, in case the app is closed meanwhile. */
+    fun saveSignInService(service: ScrobbleService) {
+        prefs.edit { putString(KEY_SERVICE, service.name) }
     }
 
     /** Remembers the API account a browser sign-in was started with, in case the app is closed meanwhile. */
@@ -158,11 +175,13 @@ class Settings(context: Context) {
 
     private fun loadAccount(): Account? {
         val sessionKey = prefs.getString(KEY_SESSION_KEY, null) ?: return null
+        val service = signInService
         return Account(
             username = prefs.getString(KEY_USERNAME, null).orEmpty(),
             sessionKey = sessionKey,
-            apiKey = apiKey,
-            apiSecret = apiSecret,
+            apiKey = apiKeyFor(service),
+            apiSecret = apiSecretFor(service),
+            service = service,
         )
     }
 
@@ -178,6 +197,7 @@ class Settings(context: Context) {
         const val KEY_SESSION_KEY = "session_key"
         const val KEY_API_KEY = "api_key"
         const val KEY_API_SECRET = "api_secret"
+        const val KEY_SERVICE = "service"
         const val KEY_ENABLED = "scrobbling_enabled"
         const val KEY_THRESHOLD_PERCENT = "threshold_percent"
         const val KEY_SEND_ALBUM = "send_album"

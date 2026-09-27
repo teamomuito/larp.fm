@@ -5,7 +5,7 @@
 <h1 align="center">larp.fm</h1>
 
 <p align="center">
-  a pink little Last.fm scrobbler for Android
+  a pink little Last.fm and Libre.fm scrobbler for Android
 </p>
 
 <p align="center">
@@ -17,7 +17,8 @@
 <br>
 
 larp.fm picks up whatever's playing on your phone (Spotify, YouTube Music, Poweramp, pretty much
-any app with a media notification) and scrobbles it to [Last.fm](https://www.last.fm). No
+any app with a media notification) and scrobbles it to [Last.fm](https://www.last.fm) or
+[Libre.fm](https://libre.fm). No
 internet? Plays get saved and sent later.
 
 And yes, it larps. Pause and resume a song, skip back or seek, and it counts again.
@@ -25,6 +26,7 @@ And yes, it larps. Pause and resume a song, skip back or seek, and it counts aga
 ## features
 
 - scrobble after anywhere from 1% to 50% of a song (Last.fm's default is 50%)
+- works with Last.fm or Libre.fm, you pick when you sign in
 - send the album, or just artist + track
 - clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
 - scrobble just the first artist: `Artist A feat. Artist B` becomes `Artist A`
@@ -42,7 +44,7 @@ And yes, it larps. Pause and resume a song, skip back or seek, and it counts aga
 3. Tap **Sign in with Last.fm**, hit Allow on the Last.fm page, and you're back in the app. If
    the build doesn't have an API key baked in, it'll ask for one first.
    [Grab one here](https://www.last.fm/api/account/create). It takes a minute, and the name and
-   description can be anything.
+   description can be anything. For Libre.fm, pick **Libre.fm** first. It doesn't need an API key.
 4. Give it notification access when it asks. That's the only way Android lets an app see what's
    playing. larp.fm doesn't read your notifications.
 
@@ -63,8 +65,9 @@ it off with **Rescrobble on skip & pause** in the settings.
 **Auto-LARP** makes every song count up to 10 times. The first scrobble goes out right away and
 the rest wait in the app, one an hour, each timestamped an hour after the last. Play Iron Maiden
 at 12:00 with auto-LARP at 3× and it's scrobbled at 12:00, 13:00 and 14:00. Copies only go out
-once Last.fm has taken the original, real plays are always sent first, and copies hold off once
-2,300 scrobbles have gone out in a day so your real listening stays under Last.fm's 2,800 limit.
+once the original has been accepted, real plays are always sent first, and on Last.fm copies hold
+off once 2,300 scrobbles have gone out in a day so your real listening stays under its 2,800
+limit. Libre.fm has no daily limit, so there copies go out as soon as they're due.
 Replays from skip & pause count once and don't get copies.
 
 Last.fm isn't a fan of fake scrobbles, so larp responsibly.
@@ -99,7 +102,7 @@ base64 -w0 release.keystore
 The code is split in two:
 
 - `core/` is plain Kotlin with unit tests. It has the scrobble rules, the playback tracking, the
-  album title cleanup and the Last.fm client.
+  album title cleanup and the Last.fm/Libre.fm client.
 - `app/` is the Android app. It uses Jetpack Compose for the UI, a notification listener that
   follows media sessions, and WorkManager to send scrobbles.
 

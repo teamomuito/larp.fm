@@ -45,10 +45,10 @@ class ScrobbleRepository(private val db: ScrobbleDb) {
         refresh()
     }
 
-    /** What can be sent now. Copies wait while [Larp.DAILY_BUDGET] is used up. */
-    fun pending(limit: Int): List<ScrobbleEntry> {
+    /** What can be sent now. On a site with a [dailyLimit], copies wait while [Larp.DAILY_BUDGET] is used up. */
+    fun pending(limit: Int, dailyLimit: Boolean): List<ScrobbleEntry> {
         val now = nowSec()
-        val copiesAllowed = db.countSentSince(now - DAY_SEC) < Larp.DAILY_BUDGET
+        val copiesAllowed = !dailyLimit || db.countSentSince(now - DAY_SEC) < Larp.DAILY_BUDGET
         return db.pending(limit, now, copiesAllowed)
     }
 

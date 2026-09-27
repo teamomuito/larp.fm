@@ -93,7 +93,10 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
                     Spacer(Modifier.width(12.dp))
                     Column(Modifier.weight(1f)) {
                         Text("larp.fm", style = MaterialTheme.typography.headlineMedium)
-                        Text("Signed in as ${account.username}", style = MaterialTheme.typography.bodyMedium)
+                        Text(
+                            "Signed in to ${account.service.title} as ${account.username}",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
                     }
                     TextButton(onClick = viewModel::signOut) { Text("Sign out") }
                 }
@@ -121,10 +124,10 @@ fun HomeScreen(viewModel: MainViewModel, account: Account) {
             item { NowPlayingCard(nowPlaying) }
 
             if (pendingCount > 0 || lastError != null) {
-                item { QueueCard(pendingCount, lastError, onSendNow = viewModel::sendNow) }
+                item { QueueCard(account.service.title, pendingCount, lastError, onSendNow = viewModel::sendNow) }
             }
 
-            item { LastFmCheckCard(account.username, lastFmCheck, apiLog, onCheck = viewModel::checkLastFm) }
+            item { LastFmCheckCard(account.service.title, account.username, lastFmCheck, apiLog, onCheck = viewModel::checkLastFm) }
 
             item {
                 SettingsCard(
@@ -224,7 +227,7 @@ private fun NowPlayingCard(nowPlaying: NowPlaying?) {
 }
 
 @Composable
-private fun QueueCard(pendingCount: Int, lastError: String?, onSendNow: () -> Unit) {
+private fun QueueCard(site: String, pendingCount: Int, lastError: String?, onSendNow: () -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
             if (pendingCount > 0) {
@@ -234,7 +237,7 @@ private fun QueueCard(pendingCount: Int, lastError: String?, onSendNow: () -> Un
                 )
             }
             if (lastError != null) {
-                Text("Last.fm: $lastError", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
+                Text("$site: $lastError", color = MaterialTheme.colorScheme.error, style = MaterialTheme.typography.bodySmall)
             }
             if (pendingCount > 0) {
                 FilledTonalButton(onClick = onSendNow) { Text("Send now") }
@@ -244,13 +247,19 @@ private fun QueueCard(pendingCount: Int, lastError: String?, onSendNow: () -> Un
 }
 
 @Composable
-private fun LastFmCheckCard(username: String, check: LastFmCheck, apiLog: List<ApiLogEntry>, onCheck: () -> Unit) {
+private fun LastFmCheckCard(
+    site: String,
+    username: String,
+    check: LastFmCheck,
+    apiLog: List<ApiLogEntry>,
+    onCheck: () -> Unit,
+) {
     val context = LocalContext.current
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-            Text("Check Last.fm", style = MaterialTheme.typography.titleSmall)
+            Text("Check $site", style = MaterialTheme.typography.titleSmall)
             Text(
-                "See what Last.fm has actually recorded for $username.",
+                "See what $site has actually recorded for $username.",
                 style = MaterialTheme.typography.bodySmall,
             )
             FilledTonalButton(onClick = onCheck, enabled = check != LastFmCheck.Loading) {
@@ -265,10 +274,10 @@ private fun LastFmCheckCard(username: String, check: LastFmCheck, apiLog: List<A
                 )
                 is LastFmCheck.Done -> {
                     check.recent.total?.let {
-                        Text("$it scrobbles on Last.fm", style = MaterialTheme.typography.bodyMedium)
+                        Text("$it scrobbles on $site", style = MaterialTheme.typography.bodyMedium)
                     }
                     if (check.recent.tracks.isEmpty()) {
-                        Text("Last.fm has no recent tracks", style = MaterialTheme.typography.bodySmall)
+                        Text("$site has no recent tracks", style = MaterialTheme.typography.bodySmall)
                     }
                     for (track in check.recent.tracks) {
                         val time = if (track.nowPlaying) {
@@ -293,7 +302,7 @@ private fun LastFmCheckCard(username: String, check: LastFmCheck, apiLog: List<A
             }
             if (apiLog.isNotEmpty()) {
                 HorizontalDivider()
-                Text("Latest replies from Last.fm", style = MaterialTheme.typography.labelMedium)
+                Text("Latest replies from $site", style = MaterialTheme.typography.labelMedium)
                 for (entry in apiLog) {
                     val time = DateUtils.formatDateTime(context, entry.timeMs, DateUtils.FORMAT_SHOW_TIME)
                     Text(

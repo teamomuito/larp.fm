@@ -16,7 +16,7 @@ class LastFmClientTest {
         apiKey = "key",
         apiSecret = "secret",
         transport = { url, form ->
-            assertEquals(LastFmClient.API_URL, url)
+            assertEquals(ScrobbleService.LASTFM.apiUrl, url)
             requests += form
             HttpResponse(code, body)
         },
@@ -94,6 +94,31 @@ class LastFmClientTest {
         val url = client(body = "{}").webAuthUrl("larpfm://auth")
 
         assertEquals("https://www.last.fm/api/auth/?api_key=key&cb=larpfm%3A%2F%2Fauth", url)
+    }
+
+    @Test
+    fun `libre fm uses its own server for the api and sign-in`() {
+        val urls = mutableListOf<String>()
+        val libre = LastFmClient("key", "secret", { url, form ->
+            urls += url
+            requests += form
+            HttpResponse(200, """{"session":{"name":"me","key":"sk"}}""")
+        }, ScrobbleService.LIBREFM)
+
+        assertEquals("https://libre.fm/api/auth/?api_key=key&cb=larpfm%3A%2F%2Fauth", libre.webAuthUrl("larpfm://auth"))
+        assertEquals(Session("me", "sk"), libre.getSession("token"))
+        assertEquals(listOf("https://libre.fm/2.0/"), urls)
+    }
+
+    @Test
+    fun `errors name the site`() {
+        val libre = LastFmClient("key", "secret", { _, _ -> HttpResponse(502, "Bad gateway") }, ScrobbleService.LIBREFM)
+        try {
+            libre.updateNowPlaying("sk", Track("A", "B"))
+            fail("expected an exception")
+        } catch (e: LastFmException) {
+            assertEquals("Unexpected response from Libre.fm (HTTP 502)", e.message)
+        }
     }
 
     @Test
