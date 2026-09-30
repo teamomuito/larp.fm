@@ -38,6 +38,30 @@ class PlaybackTrackerTest {
     }
 
     @Test
+    fun `at zero percent a track scrobbles as soon as it starts`() {
+        val instant = PlaybackTracker(clock) { 0 }
+        instant.onMetadata(song)
+        instant.onPlaybackState(true)
+
+        assertEquals(0L, instant.msUntilScrobble())
+        assertEquals(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_000)), instant.checkThreshold())
+    }
+
+    @Test
+    fun `at zero percent skipping past a track still scrobbles it`() {
+        val instant = PlaybackTracker(clock) { 0 }
+        val next = Track("Artist", "Next", durationMs = 180_000)
+        instant.onMetadata(song)
+        instant.onPlaybackState(true)
+        clock.advance(300)
+
+        assertEquals(
+            listOf(TrackerEvent.ScrobbleReady(Scrobble(song, 1_700_000_000)), TrackerEvent.NowPlaying(next)),
+            instant.onMetadata(next),
+        )
+    }
+
+    @Test
     fun `sends now playing when playback starts`() {
         assertEquals(emptyList<TrackerEvent>(), tracker.onMetadata(song))
         assertEquals(listOf(TrackerEvent.NowPlaying(song)), tracker.onPlaybackState(true))

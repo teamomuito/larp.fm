@@ -24,8 +24,15 @@ class ScrobbleRulesTest {
     }
 
     @Test
+    fun `zero percent counts a track as soon as it starts`() {
+        assertEquals(0L, ScrobbleRules.thresholdMs(200_000, percent = 0))
+        assertEquals("even without a known length", 0L, ScrobbleRules.thresholdMs(0, percent = 0))
+        assertNull("short tracks still never count", ScrobbleRules.thresholdMs(30_000, percent = 0))
+    }
+
+    @Test
     fun `out of range percentages are clamped`() {
-        assertEquals(2_000L, ScrobbleRules.thresholdMs(200_000, percent = 0))
+        assertEquals(0L, ScrobbleRules.thresholdMs(200_000, percent = -5))
         assertEquals("no more than half", 100_000L, ScrobbleRules.thresholdMs(200_000, percent = 90))
     }
 }
