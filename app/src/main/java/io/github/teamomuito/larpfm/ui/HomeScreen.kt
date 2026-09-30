@@ -320,9 +320,16 @@ private fun SettingsCard(
 ) {
     GlassCard(Modifier.fillMaxWidth()) {
         Column {
-            Text("Scrobble threshold: $thresholdPercent%", style = MaterialTheme.typography.titleSmall)
             Text(
-                "A track counts once $thresholdPercent% of it has played, or 4 minutes, whichever comes first.",
+                if (thresholdPercent == 0) "Scrobble threshold: as soon as it starts" else "Scrobble threshold: $thresholdPercent%",
+                style = MaterialTheme.typography.titleSmall,
+            )
+            Text(
+                if (thresholdPercent == 0) {
+                    "A track counts as soon as it starts playing, even if you skip it right away."
+                } else {
+                    "A track counts once $thresholdPercent% of it has played, or 4 minutes, whichever comes first."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

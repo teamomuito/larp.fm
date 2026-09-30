@@ -22,7 +22,7 @@ any app with a media notification) and scrobbles it to [Last.fm](https://www.las
 
 ## features
 
-- scrobble after anywhere from 1% to 50% of a song (Last.fm's default is 50%)
+- scrobble as soon as a song starts, or after up to 50% of it (Last.fm's default is 50%)
 - works with Last.fm or Libre.fm, you pick when you sign in
 - send the album, or just artist + track
 - clean up album titles: `Iron Maiden (Remaster) [Special]` becomes `Iron Maiden`
