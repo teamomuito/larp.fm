@@ -1,0 +1,45 @@
+name: Build Colony APK
+
+on:
+  push:
+    paths:
+      - "colony/**"
+      - ".github/workflows/colony.yml"
+  pull_request:
+    paths:
+      - "colony/**"
+      - ".github/workflows/colony.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: colony
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          build-root-directory: colony
+
+      - name: Test and build
+        run: ./gradlew -PwithApp :sim:test :app:assembleRelease
+
+      - name: Rename APK
+        run: cp app/build/outputs/apk/release/app-release.apk "colony-${GITHUB_SHA::7}.apk"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: colony-apk
+          path: colony/colony-*.apk
+          if-no-files-found: error
